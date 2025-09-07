@@ -10,6 +10,7 @@ function SimpleSettings({ onConfigChange }: { onConfigChange?: (config: ShipHero
   const [refreshToken, setRefreshToken] = useState("")
   const [accessToken, setAccessToken] = useState("")
   const [savedConfig, setSavedConfig] = useState<ShipHeroConfig | null>(null)
+  const [isGenerating, setIsGenerating] = useState(false)
 
   // Load saved config on mount
   useEffect(() => {
@@ -59,6 +60,56 @@ function SimpleSettings({ onConfigChange }: { onConfigChange?: (config: ShipHero
     alert('Configuration cleared')
   }
 
+  const generateAccessToken = async () => {
+    if (!refreshToken.trim()) {
+      alert('Please enter a refresh token first')
+      return
+    }
+
+    setIsGenerating(true)
+    
+    try {
+      const response = await fetch('/api/shiphero/refresh', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          refreshToken: refreshToken.trim()
+        })
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to generate access token')
+      }
+
+      const data = await response.json()
+      
+      // Update the access token field
+      setAccessToken(data.access_token)
+      
+      // Save the updated configuration
+      const config: ShipHeroConfig = {
+        refreshToken: refreshToken.trim(),
+        accessToken: data.access_token,
+        tokenExpiry: new Date(Date.now() + data.expires_in * 1000) // expires_in is in seconds
+      }
+
+      localStorage.setItem('shiphero-config', JSON.stringify(config))
+      setSavedConfig(config)
+      onConfigChange?.(config)
+      
+      alert(`Access token generated successfully! Expires in ${Math.round(data.expires_in / (24 * 60 * 60))} days.`)
+      
+    } catch (error) {
+      console.error('Error generating access token:', error)
+      alert(`Error: ${error instanceof Error ? error.message : 'Unknown error occurred'}`)
+    } finally {
+      setIsGenerating(false)
+    }
+  }
+
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <div className="bg-white rounded-lg shadow p-6">
@@ -97,12 +148,24 @@ function SimpleSettings({ onConfigChange }: { onConfigChange?: (config: ShipHero
             </p>
           </div>
 
-          <div className="flex gap-3 pt-4">
+          <div className="flex flex-wrap gap-3 pt-4">
             <button
               onClick={saveConfig}
               className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               Save Configuration
+            </button>
+            
+            <button
+              onClick={generateAccessToken}
+              disabled={!refreshToken.trim() || isGenerating}
+              className={`px-4 py-2 text-white rounded-md focus:outline-none focus:ring-2 ${
+                !refreshToken.trim() || isGenerating
+                  ? 'bg-gray-400 cursor-not-allowed'
+                  : 'bg-green-600 hover:bg-green-700 focus:ring-green-500'
+              }`}
+            >
+              {isGenerating ? 'Generating...' : '🔄 Generate Access Token'}
             </button>
             
             {savedConfig && (
@@ -134,14 +197,15 @@ function SimpleSettings({ onConfigChange }: { onConfigChange?: (config: ShipHero
         <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-md">
           <h3 className="text-lg font-medium text-blue-800 mb-2">💡 How to Generate Access Tokens</h3>
           <div className="text-sm text-blue-700 space-y-2">
-            <p>To generate an access token from your refresh token, use this curl command:</p>
+            <p><strong>Easy way:</strong> Click the "🔄 Generate Access Token" button above after entering your refresh token!</p>
+            <p><strong>Manual way:</strong> Use this curl command:</p>
             <div className="bg-blue-100 p-3 rounded font-mono text-xs overflow-x-auto">
               curl -X POST -H "Content-Type: application/json" -d<br/>
               '{`{"refresh_token": "YOUR_REFRESH_TOKEN"}`}' \<br/>
               https://public-api.shiphero.com/auth/refresh
             </div>
             <p className="text-xs">
-              <strong>Note:</strong> Due to CORS restrictions, access token generation must be done server-side or via curl/Postman.
+              <strong>Note:</strong> The button uses a server-side API route to bypass CORS restrictions.
             </p>
           </div>
         </div>
