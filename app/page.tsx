@@ -1,12 +1,22 @@
 "use client"
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ShipHeroConfig } from '@/lib/shiphero-api'
 
 // Step-by-step Settings component for debugging
 function MinimalSettings({ onConfigChange }: { onConfigChange?: (config: ShipHeroConfig) => void }) {
   const [token, setToken] = useState("")
+  
+  // Step 2: Add useEffect to auto-load on mount
+  useEffect(() => {
+    console.log('useEffect running - loading from localStorage')
+    const config = loadFromStorage()
+    if (config) {
+      console.log('Auto-loaded config:', config)
+      onConfigChange?.(config)
+    }
+  }, []) // Empty dependency array - should only run once
   
   // Step 1: Add localStorage operations
   const saveToStorage = (config: ShipHeroConfig) => {
@@ -35,7 +45,7 @@ function MinimalSettings({ onConfigChange }: { onConfigChange?: (config: ShipHer
   
   return (
     <div className="p-6 bg-white rounded-lg shadow space-y-4">
-      <h2 className="text-xl font-semibold">ShipHero Settings - Step 1: localStorage</h2>
+      <h2 className="text-xl font-semibold">ShipHero Settings - Step 2: useEffect</h2>
       
       <div className="space-y-2">
         <label className="block text-sm font-medium">Refresh Token:</label>
