@@ -34,7 +34,7 @@ export function Settings({ onConfigChange }: SettingsProps) {
       setDaysUntilExpiry(apiInstance.getDaysUntilExpiry())
       onConfigChange?.(savedConfig)
     }
-  }, [onConfigChange])
+  }, []) // Remove onConfigChange from dependency array to prevent infinite loop
 
   const handleSaveConfig = async () => {
     if (!refreshToken.trim()) {
