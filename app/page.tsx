@@ -8,6 +8,8 @@ import { ShipHeroConfig, ShipHeroAPI } from '@/lib/shiphero-api'
 function MinimalSettings({ onConfigChange }: { onConfigChange?: (config: ShipHeroConfig) => void }) {
   const [token, setToken] = useState("")
   const [api, setApi] = useState<ShipHeroAPI | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
+  const [connectionStatus, setConnectionStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle')
   
   // Step 3: Add ShipHero API initialization
   useEffect(() => {
@@ -54,9 +56,34 @@ function MinimalSettings({ onConfigChange }: { onConfigChange?: (config: ShipHer
     return null
   }
   
+  // Step 4: Add API test connection
+  const testConnection = async () => {
+    if (!api) {
+      alert('Please save your token first')
+      return
+    }
+    
+    setIsLoading(true)
+    setConnectionStatus('testing')
+    
+    try {
+      console.log('Testing ShipHero API connection...')
+      const warehouses = await api.testConnection()
+      console.log('Connection successful! Warehouses:', warehouses)
+      setConnectionStatus('success')
+      alert(`Connection successful! Found ${warehouses.length} warehouses.`)
+    } catch (error) {
+      console.error('Connection test failed:', error)
+      setConnectionStatus('error')
+      alert(`Connection failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+  
   return (
     <div className="p-6 bg-white rounded-lg shadow space-y-4">
-      <h2 className="text-xl font-semibold">ShipHero Settings - Step 3: API Init</h2>
+      <h2 className="text-xl font-semibold">ShipHero Settings - Step 4: API Calls</h2>
       
       <div className="space-y-2">
         <label className="block text-sm font-medium">Refresh Token:</label>
@@ -109,6 +136,22 @@ function MinimalSettings({ onConfigChange }: { onConfigChange?: (config: ShipHer
           className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
         >
           Load Token
+        </button>
+        
+        <button
+          onClick={testConnection}
+          disabled={!api || isLoading}
+          className={`px-4 py-2 text-white rounded ${
+            !api || isLoading 
+              ? 'bg-gray-400 cursor-not-allowed' 
+              : connectionStatus === 'success'
+                ? 'bg-green-500 hover:bg-green-600'
+                : connectionStatus === 'error'
+                  ? 'bg-red-500 hover:bg-red-600'
+                  : 'bg-purple-500 hover:bg-purple-600'
+          }`}
+        >
+          {isLoading ? 'Testing...' : 'Test Connection'}
         </button>
       </div>
     </div>
