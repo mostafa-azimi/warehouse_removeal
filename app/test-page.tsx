@@ -4,12 +4,12 @@ import { useState } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 
-export default function WarehouseApp() {
+export default function TestPage() {
   const [activeTab, setActiveTab] = useState("tab1")
 
   return (
     <div className="min-h-screen bg-background p-8">
-      <h1 className="text-2xl font-bold mb-4">Test Page - Can you click tabs?</h1>
+      <h1 className="text-2xl font-bold mb-4">Test Page</h1>
       
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="grid w-full grid-cols-3">
