@@ -2,9 +2,16 @@
 
 import { useState } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Settings } from '@/components/settings'
+import { ShipHeroConfig } from '@/lib/shiphero-api'
 
 export default function WarehouseApp() {
   const [activeTab, setActiveTab] = useState('test')
+  const [shipheroConfig, setShipheroConfig] = useState<ShipHeroConfig | null>(null)
+
+  const handleConfigChange = (config: ShipHeroConfig) => {
+    setShipheroConfig(config)
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -45,9 +52,7 @@ export default function WarehouseApp() {
           </TabsContent>
           
           <TabsContent value="settings" className="mt-6">
-            <div className="p-6 bg-white rounded-lg shadow">
-              <p>Settings tab - placeholder</p>
-            </div>
+            <Settings onConfigChange={handleConfigChange} />
           </TabsContent>
         </Tabs>
       </div>
