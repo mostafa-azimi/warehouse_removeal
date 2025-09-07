@@ -89,7 +89,11 @@ export default function WarehouseApp() {
           </TabsContent>
           
           <TabsContent value="settings" className="mt-6">
-            <Settings onConfigChange={handleConfigChange} />
+            <div className="p-6 bg-white rounded-lg shadow">
+              <h2 className="text-xl font-semibold mb-4">Settings - Temporarily Disabled</h2>
+              <p className="text-red-600 mb-4">Settings component is causing freezing issues. Under investigation.</p>
+              <p className="text-gray-600">The Settings component has a deeper issue that we need to identify. The other tabs should work fine.</p>
+            </div>
           </TabsContent>
         </Tabs>
       </div>
