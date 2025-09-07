@@ -52,7 +52,16 @@ export default function WarehouseApp() {
           </TabsContent>
           
           <TabsContent value="settings" className="mt-6">
-            <Settings onConfigChange={handleConfigChange} />
+            <div className="p-6 bg-white rounded-lg shadow">
+              <h2 className="text-xl font-semibold mb-4">Settings - Debug Mode</h2>
+              <p>Testing if Settings component itself is the issue...</p>
+              <button 
+                onClick={() => alert('Settings placeholder works!')}
+                className="mt-4 px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
+              >
+                Test Settings Button
+              </button>
+            </div>
           </TabsContent>
         </Tabs>
       </div>
