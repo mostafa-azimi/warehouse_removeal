@@ -127,7 +127,7 @@ export default function WarehouseApp() {
                 <CardDescription>View and export your packing manifest</CardDescription>
               </CardHeader>
               <CardContent>
-                <ManifestView packedBoxes={packedBoxes} />
+                <ManifestView packedBoxes={packedBoxes} shipheroConfig={shipheroConfig} />
               </CardContent>
             </Card>
           </TabsContent>

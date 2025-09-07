@@ -150,41 +150,83 @@ export class ShipHeroAPI {
   }
 
   async createSalesOrder(orderData: {
+    orderNumber: string;
     customerEmail: string;
     lineItems: Array<{
       sku: string;
       quantity: number;
+      price: number;
+      productName?: string;
     }>;
     shippingAddress: {
-      name: string;
+      firstName: string;
+      lastName: string;
       address1: string;
       address2?: string;
       city: string;
       state: string;
       zip: string;
       country: string;
+      email?: string;
+      phone?: string;
     };
+    subtotal: number;
+    totalPrice: number;
+    shopName?: string;
   }): Promise<string> {
     const mutation = `
-      mutation CreateSalesOrder($input: CreateSalesOrderInput!) {
-        createSalesOrder(input: $input) {
-          id
-          orderNumber
+      mutation CreateOrder($data: CreateOrderInput!) {
+        order_create(data: $data) {
+          request_id
+          complexity
+          order {
+            id
+            order_number
+            fulfillment_status
+          }
         }
       }
     `;
 
     const variables = {
-      input: {
-        customerEmail: orderData.customerEmail,
-        lineItems: orderData.lineItems,
-        shippingAddress: orderData.shippingAddress,
+      data: {
+        order_number: orderData.orderNumber,
+        shop_name: orderData.shopName || "Warehouse Removal",
+        fulfillment_status: "pending",
+        order_date: new Date().toISOString(),
+        subtotal: orderData.subtotal,
+        total_price: orderData.totalPrice,
+        currency: "USD",
+        email: orderData.customerEmail,
+        shipping_lines: {
+          title: "Standard Shipping",
+          price: "0.00"
+        },
+        shipping_address: {
+          first_name: orderData.shippingAddress.firstName,
+          last_name: orderData.shippingAddress.lastName,
+          address1: orderData.shippingAddress.address1,
+          address2: orderData.shippingAddress.address2,
+          city: orderData.shippingAddress.city,
+          state: orderData.shippingAddress.state,
+          zip: orderData.shippingAddress.zip,
+          country: orderData.shippingAddress.country,
+          email: orderData.shippingAddress.email || orderData.customerEmail,
+          phone: orderData.shippingAddress.phone,
+        },
+        line_items: orderData.lineItems.map(item => ({
+          sku: item.sku,
+          quantity: item.quantity,
+          price: item.price.toString(),
+          product_name: item.productName || `Product ${item.sku}`,
+          fulfillment_status: "pending",
+        })),
       },
     };
 
     try {
       const data = await this.makeGraphQLRequest(mutation, variables);
-      return data.createSalesOrder.id;
+      return data.order_create.order.id;
     } catch (error) {
       throw new Error(`Failed to create sales order: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }

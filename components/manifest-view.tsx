@@ -4,13 +4,16 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Download, Package, FileText, Printer } from "lucide-react"
+import { SalesOrderIntegration } from "@/components/sales-order-integration"
 import type { PackedBox } from "@/app/page"
+import type { ShipHeroConfig } from "@/lib/shiphero-api"
 
 interface ManifestViewProps {
   packedBoxes: PackedBox[]
+  shipheroConfig?: ShipHeroConfig | null
 }
 
-export function ManifestView({ packedBoxes }: ManifestViewProps) {
+export function ManifestView({ packedBoxes, shipheroConfig }: ManifestViewProps) {
   const totalBoxes = packedBoxes.length
   const totalItems = packedBoxes.reduce((sum, box) => sum + box.totalItems, 0)
   const totalSKUs = new Set(packedBoxes.flatMap((box) => box.items.map((item) => item.sku))).size
@@ -194,6 +197,14 @@ export function ManifestView({ packedBoxes }: ManifestViewProps) {
 
   return (
     <div className="space-y-6">
+      {/* Sales Order Integration */}
+      {shipheroConfig && (
+        <SalesOrderIntegration 
+          packedBoxes={packedBoxes} 
+          shipheroConfig={shipheroConfig} 
+        />
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <CardContent className="p-6">
