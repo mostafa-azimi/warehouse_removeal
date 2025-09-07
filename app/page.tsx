@@ -6,11 +6,31 @@ import { DataImport } from '@/components/data-import'
 import { QRScanner } from '@/components/qr-scanner'
 import { ManifestView } from '@/components/manifest-view'
 // Simple Settings component that works without API calls
+interface Warehouse {
+  id: string
+  identifier: string
+  name: string
+  address: {
+    name: string
+    address1: string
+    address2: string
+    city: string
+    state: string
+    zip: string
+    country: string
+  }
+  is_active: boolean
+  decodedId: string
+}
+
 function SimpleSettings({ onConfigChange }: { onConfigChange?: (config: ShipHeroConfig) => void }) {
   const [refreshToken, setRefreshToken] = useState("")
   const [accessToken, setAccessToken] = useState("")
   const [savedConfig, setSavedConfig] = useState<ShipHeroConfig | null>(null)
   const [isGenerating, setIsGenerating] = useState(false)
+  const [isTesting, setIsTesting] = useState(false)
+  const [warehouses, setWarehouses] = useState<Warehouse[]>([])
+  const [connectionStatus, setConnectionStatus] = useState<'idle' | 'success' | 'error'>('idle')
 
   // Load saved config on mount
   useEffect(() => {
@@ -110,6 +130,47 @@ function SimpleSettings({ onConfigChange }: { onConfigChange?: (config: ShipHero
     }
   }
 
+  const testConnection = async () => {
+    const currentAccessToken = accessToken || savedConfig?.accessToken
+    
+    if (!currentAccessToken) {
+      alert('Please generate an access token first')
+      return
+    }
+
+    setIsTesting(true)
+    setConnectionStatus('idle')
+    
+    try {
+      const response = await fetch('/api/shiphero/warehouses', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          accessToken: currentAccessToken
+        })
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to test connection')
+      }
+
+      const data = await response.json()
+      setWarehouses(data.warehouses)
+      setConnectionStatus('success')
+      
+    } catch (error) {
+      console.error('Error testing connection:', error)
+      setConnectionStatus('error')
+      setWarehouses([])
+      alert(`Connection test failed: ${error instanceof Error ? error.message : 'Unknown error occurred'}`)
+    } finally {
+      setIsTesting(false)
+    }
+  }
+
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <div className="bg-white rounded-lg shadow p-6">
@@ -168,6 +229,22 @@ function SimpleSettings({ onConfigChange }: { onConfigChange?: (config: ShipHero
               {isGenerating ? 'Generating...' : '🔄 Generate Access Token'}
             </button>
             
+            <button
+              onClick={testConnection}
+              disabled={!(accessToken || savedConfig?.accessToken) || isTesting}
+              className={`px-4 py-2 text-white rounded-md focus:outline-none focus:ring-2 ${
+                !(accessToken || savedConfig?.accessToken) || isTesting
+                  ? 'bg-gray-400 cursor-not-allowed'
+                  : connectionStatus === 'success'
+                    ? 'bg-emerald-600 hover:bg-emerald-700 focus:ring-emerald-500'
+                    : connectionStatus === 'error'
+                      ? 'bg-red-600 hover:bg-red-700 focus:ring-red-500'
+                      : 'bg-purple-600 hover:bg-purple-700 focus:ring-purple-500'
+              }`}
+            >
+              {isTesting ? 'Testing...' : connectionStatus === 'success' ? '✅ Test Connection' : '🔗 Test Connection'}
+            </button>
+            
             {savedConfig && (
               <button
                 onClick={clearConfig}
@@ -210,6 +287,73 @@ function SimpleSettings({ onConfigChange }: { onConfigChange?: (config: ShipHero
           </div>
         </div>
       </div>
+
+      {/* Warehouse Results Table */}
+      {warehouses.length > 0 && (
+        <div className="bg-white rounded-lg shadow p-6">
+          <h3 className="text-xl font-bold text-gray-900 mb-4">
+            ✅ Connection Successful - Your Warehouses ({warehouses.length})
+          </h3>
+          
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Name
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Identifier
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Address
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Decoded ID
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {warehouses.map((warehouse, index) => (
+                  <tr key={warehouse.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      {warehouse.name}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {warehouse.identifier}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-500">
+                      <div>
+                        {warehouse.address.address1}
+                        {warehouse.address.address2 && <div>{warehouse.address.address2}</div>}
+                        <div>
+                          {warehouse.address.city}, {warehouse.address.state} {warehouse.address.zip}
+                        </div>
+                        <div>{warehouse.address.country}</div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">
+                      {warehouse.decodedId}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                        warehouse.is_active 
+                          ? 'bg-green-100 text-green-800' 
+                          : 'bg-red-100 text-red-800'
+                      }`}>
+                        {warehouse.is_active ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
