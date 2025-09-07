@@ -2,8 +2,43 @@
 
 import { useState } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Settings } from '@/components/settings'
 import { ShipHeroConfig } from '@/lib/shiphero-api'
+
+// Minimal Settings component for debugging
+function MinimalSettings({ onConfigChange }: { onConfigChange?: (config: ShipHeroConfig) => void }) {
+  const [token, setToken] = useState("")
+  
+  return (
+    <div className="p-6 bg-white rounded-lg shadow space-y-4">
+      <h2 className="text-xl font-semibold">ShipHero Settings - Minimal Version</h2>
+      
+      <div className="space-y-2">
+        <label className="block text-sm font-medium">Refresh Token:</label>
+        <input
+          type="text"
+          value={token}
+          onChange={(e) => setToken(e.target.value)}
+          placeholder="Enter your ShipHero refresh token"
+          className="w-full px-3 py-2 border border-gray-300 rounded-md"
+        />
+      </div>
+      
+      <button
+        onClick={() => {
+          if (token.trim()) {
+            onConfigChange?.({ refreshToken: token.trim() })
+            alert('Token saved! (minimal version)')
+          } else {
+            alert('Please enter a token')
+          }
+        }}
+        className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+      >
+        Save Token
+      </button>
+    </div>
+  )
+}
 
 export default function WarehouseApp() {
   const [activeTab, setActiveTab] = useState('test')
@@ -52,16 +87,7 @@ export default function WarehouseApp() {
           </TabsContent>
           
           <TabsContent value="settings" className="mt-6">
-            <div className="p-6 bg-white rounded-lg shadow">
-              <h2 className="text-xl font-semibold mb-4">Settings - Debug Mode</h2>
-              <p>Testing if Settings component itself is the issue...</p>
-              <button 
-                onClick={() => alert('Settings placeholder works!')}
-                className="mt-4 px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
-              >
-                Test Settings Button
-              </button>
-            </div>
+            <MinimalSettings onConfigChange={handleConfigChange} />
           </TabsContent>
         </Tabs>
       </div>
