@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Upload, Scan, Package, FileText, Settings } from "lucide-react"
@@ -44,11 +44,14 @@ export default function WarehouseApp() {
   const [activeTab, setActiveTab] = useState("import")
   const [shipheroConfig, setShipheroConfig] = useState<ShipHeroConfig | null>(null)
 
-  console.log("[WAREHOUSE_APP] Component rendered")
-  console.log("[WAREHOUSE_APP] Current active tab:", activeTab)
-  console.log("[WAREHOUSE_APP] Inventory data length:", inventoryData.length)
-  console.log("[WAREHOUSE_APP] Current box items:", currentBox.length)
-  console.log("[WAREHOUSE_APP] ShipHero config:", shipheroConfig ? "configured" : "not configured")
+  // Debug logging in useEffect to avoid render loop
+  useEffect(() => {
+    console.log("[WAREHOUSE_APP] Component rendered")
+    console.log("[WAREHOUSE_APP] Current active tab:", activeTab)
+    console.log("[WAREHOUSE_APP] Inventory data length:", inventoryData.length)
+    console.log("[WAREHOUSE_APP] Current box items:", currentBox.length)
+    console.log("[WAREHOUSE_APP] ShipHero config:", shipheroConfig ? "configured" : "not configured")
+  })
 
   const handleTabChange = (newTab: string) => {
     console.log("[WAREHOUSE_APP] Tab change requested:", newTab)
@@ -109,7 +112,6 @@ export default function WarehouseApp() {
           </TabsList>
 
           <TabsContent value="import">
-            {console.log("[TAB_CONTENT] Rendering Import tab")}
             <Card>
               <CardHeader>
                 <CardTitle>Import Inventory Data</CardTitle>
@@ -122,7 +124,6 @@ export default function WarehouseApp() {
           </TabsContent>
 
           <TabsContent value="scan">
-            {console.log("[TAB_CONTENT] Rendering Scan tab")}
             <Card>
               <CardHeader>
                 <CardTitle>Scan QR Codes & Build Boxes</CardTitle>
@@ -148,7 +149,6 @@ export default function WarehouseApp() {
           </TabsContent>
 
           <TabsContent value="manifest">
-            {console.log("[TAB_CONTENT] Rendering Manifest tab")}
             <Card>
               <CardHeader>
                 <CardTitle>Shipping Manifest</CardTitle>
@@ -161,7 +161,6 @@ export default function WarehouseApp() {
           </TabsContent>
 
           <TabsContent value="settings">
-            {console.log("[TAB_CONTENT] Rendering Settings tab")}
             <SettingsComponent onConfigChange={setShipheroConfig} />
           </TabsContent>
         </Tabs>

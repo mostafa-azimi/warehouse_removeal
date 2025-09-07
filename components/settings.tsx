@@ -15,9 +15,6 @@ interface SettingsProps {
 }
 
 export function Settings({ onConfigChange }: SettingsProps) {
-  console.log("[SETTINGS] Component rendered")
-  console.log("[SETTINGS] onConfigChange prop:", typeof onConfigChange)
-  
   const [refreshToken, setRefreshToken] = useState("")
   const [api, setApi] = useState<ShipHeroAPI | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -27,15 +24,20 @@ export function Settings({ onConfigChange }: SettingsProps) {
   const [daysUntilExpiry, setDaysUntilExpiry] = useState(0)
   const [isRefreshing, setIsRefreshing] = useState(false)
 
-  console.log("[SETTINGS] State values:")
-  console.log("[SETTINGS] - refreshToken:", refreshToken ? "set" : "empty")
-  console.log("[SETTINGS] - api:", api ? "configured" : "null")
-  console.log("[SETTINGS] - isLoading:", isLoading)
-  console.log("[SETTINGS] - connectionStatus:", connectionStatus)
-  console.log("[SETTINGS] - warehouses count:", warehouses.length)
-  console.log("[SETTINGS] - errorMessage:", errorMessage)
-  console.log("[SETTINGS] - daysUntilExpiry:", daysUntilExpiry)
-  console.log("[SETTINGS] - isRefreshing:", isRefreshing)
+  // Debug logging in useEffect to avoid render loop
+  useEffect(() => {
+    console.log("[SETTINGS] Component rendered")
+    console.log("[SETTINGS] onConfigChange prop:", typeof onConfigChange)
+    console.log("[SETTINGS] State values:")
+    console.log("[SETTINGS] - refreshToken:", refreshToken ? "set" : "empty")
+    console.log("[SETTINGS] - api:", api ? "configured" : "null")
+    console.log("[SETTINGS] - isLoading:", isLoading)
+    console.log("[SETTINGS] - connectionStatus:", connectionStatus)
+    console.log("[SETTINGS] - warehouses count:", warehouses.length)
+    console.log("[SETTINGS] - errorMessage:", errorMessage)
+    console.log("[SETTINGS] - daysUntilExpiry:", daysUntilExpiry)
+    console.log("[SETTINGS] - isRefreshing:", isRefreshing)
+  })
 
   useEffect(() => {
     console.log("[SETTINGS] useEffect triggered")
