@@ -44,9 +44,18 @@ export default function WarehouseApp() {
   const [activeTab, setActiveTab] = useState("import")
   const [shipheroConfig, setShipheroConfig] = useState<ShipHeroConfig | null>(null)
 
-  console.log("[v0] Current active tab:", activeTab)
-  console.log("[v0] Inventory data length:", inventoryData.length)
-  console.log("[v0] Current box items:", currentBox.length)
+  console.log("[WAREHOUSE_APP] Component rendered")
+  console.log("[WAREHOUSE_APP] Current active tab:", activeTab)
+  console.log("[WAREHOUSE_APP] Inventory data length:", inventoryData.length)
+  console.log("[WAREHOUSE_APP] Current box items:", currentBox.length)
+  console.log("[WAREHOUSE_APP] ShipHero config:", shipheroConfig ? "configured" : "not configured")
+
+  const handleTabChange = (newTab: string) => {
+    console.log("[WAREHOUSE_APP] Tab change requested:", newTab)
+    console.log("[WAREHOUSE_APP] Previous tab:", activeTab)
+    setActiveTab(newTab)
+    console.log("[WAREHOUSE_APP] Tab state updated to:", newTab)
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -63,27 +72,44 @@ export default function WarehouseApp() {
       </header>
 
       <main className="container mx-auto px-4 py-8">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
           <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="import" className="flex items-center gap-2">
+            <TabsTrigger 
+              value="import" 
+              className="flex items-center gap-2"
+              onClick={() => console.log("[TAB_TRIGGER] Import tab clicked")}
+            >
               <Upload className="h-4 w-4" />
               Import Data
             </TabsTrigger>
-            <TabsTrigger value="scan" className="flex items-center gap-2">
+            <TabsTrigger 
+              value="scan" 
+              className="flex items-center gap-2"
+              onClick={() => console.log("[TAB_TRIGGER] Scan tab clicked")}
+            >
               <Scan className="h-4 w-4" />
               Scan & Pack
             </TabsTrigger>
-            <TabsTrigger value="manifest" className="flex items-center gap-2">
+            <TabsTrigger 
+              value="manifest" 
+              className="flex items-center gap-2"
+              onClick={() => console.log("[TAB_TRIGGER] Manifest tab clicked")}
+            >
               <FileText className="h-4 w-4" />
               Manifest
             </TabsTrigger>
-            <TabsTrigger value="settings" className="flex items-center gap-2">
+            <TabsTrigger 
+              value="settings" 
+              className="flex items-center gap-2"
+              onClick={() => console.log("[TAB_TRIGGER] Settings tab clicked")}
+            >
               <Settings className="h-4 w-4" />
               Settings
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="import">
+            {console.log("[TAB_CONTENT] Rendering Import tab")}
             <Card>
               <CardHeader>
                 <CardTitle>Import Inventory Data</CardTitle>
@@ -96,6 +122,7 @@ export default function WarehouseApp() {
           </TabsContent>
 
           <TabsContent value="scan">
+            {console.log("[TAB_CONTENT] Rendering Scan tab")}
             <Card>
               <CardHeader>
                 <CardTitle>Scan QR Codes & Build Boxes</CardTitle>
@@ -121,6 +148,7 @@ export default function WarehouseApp() {
           </TabsContent>
 
           <TabsContent value="manifest">
+            {console.log("[TAB_CONTENT] Rendering Manifest tab")}
             <Card>
               <CardHeader>
                 <CardTitle>Shipping Manifest</CardTitle>
@@ -133,6 +161,7 @@ export default function WarehouseApp() {
           </TabsContent>
 
           <TabsContent value="settings">
+            {console.log("[TAB_CONTENT] Rendering Settings tab")}
             <SettingsComponent onConfigChange={setShipheroConfig} />
           </TabsContent>
         </Tabs>
