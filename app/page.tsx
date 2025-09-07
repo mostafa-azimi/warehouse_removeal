@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Upload, Scan, Package, FileText, Settings } from "lucide-react"
@@ -44,22 +44,6 @@ export default function WarehouseApp() {
   const [activeTab, setActiveTab] = useState("import")
   const [shipheroConfig, setShipheroConfig] = useState<ShipHeroConfig | null>(null)
 
-  // Debug logging in useEffect to avoid render loop
-  useEffect(() => {
-    console.log("[WAREHOUSE_APP] Component rendered")
-    console.log("[WAREHOUSE_APP] Current active tab:", activeTab)
-    console.log("[WAREHOUSE_APP] Inventory data length:", inventoryData.length)
-    console.log("[WAREHOUSE_APP] Current box items:", currentBox.length)
-    console.log("[WAREHOUSE_APP] ShipHero config:", shipheroConfig ? "configured" : "not configured")
-  })
-
-  const handleTabChange = (newTab: string) => {
-    console.log("[WAREHOUSE_APP] Tab change requested:", newTab)
-    console.log("[WAREHOUSE_APP] Previous tab:", activeTab)
-    setActiveTab(newTab)
-    console.log("[WAREHOUSE_APP] Tab state updated to:", newTab)
-  }
-
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b bg-card">
@@ -75,37 +59,21 @@ export default function WarehouseApp() {
       </header>
 
       <main className="container mx-auto px-4 py-8">
-        <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger 
-              value="import" 
-              className="flex items-center gap-2"
-              onClick={() => console.log("[TAB_TRIGGER] Import tab clicked")}
-            >
+            <TabsTrigger value="import" className="flex items-center gap-2">
               <Upload className="h-4 w-4" />
               Import Data
             </TabsTrigger>
-            <TabsTrigger 
-              value="scan" 
-              className="flex items-center gap-2"
-              onClick={() => console.log("[TAB_TRIGGER] Scan tab clicked")}
-            >
+            <TabsTrigger value="scan" className="flex items-center gap-2">
               <Scan className="h-4 w-4" />
               Scan & Pack
             </TabsTrigger>
-            <TabsTrigger 
-              value="manifest" 
-              className="flex items-center gap-2"
-              onClick={() => console.log("[TAB_TRIGGER] Manifest tab clicked")}
-            >
+            <TabsTrigger value="manifest" className="flex items-center gap-2">
               <FileText className="h-4 w-4" />
               Manifest
             </TabsTrigger>
-            <TabsTrigger 
-              value="settings" 
-              className="flex items-center gap-2"
-              onClick={() => console.log("[TAB_TRIGGER] Settings tab clicked")}
-            >
+            <TabsTrigger value="settings" className="flex items-center gap-2">
               <Settings className="h-4 w-4" />
               Settings
             </TabsTrigger>

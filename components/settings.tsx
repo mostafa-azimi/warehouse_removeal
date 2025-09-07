@@ -24,78 +24,46 @@ export function Settings({ onConfigChange }: SettingsProps) {
   const [daysUntilExpiry, setDaysUntilExpiry] = useState(0)
   const [isRefreshing, setIsRefreshing] = useState(false)
 
-  // Debug logging in useEffect to avoid render loop
   useEffect(() => {
-    console.log("[SETTINGS] Component rendered")
-    console.log("[SETTINGS] onConfigChange prop:", typeof onConfigChange)
-    console.log("[SETTINGS] State values:")
-    console.log("[SETTINGS] - refreshToken:", refreshToken ? "set" : "empty")
-    console.log("[SETTINGS] - api:", api ? "configured" : "null")
-    console.log("[SETTINGS] - isLoading:", isLoading)
-    console.log("[SETTINGS] - connectionStatus:", connectionStatus)
-    console.log("[SETTINGS] - warehouses count:", warehouses.length)
-    console.log("[SETTINGS] - errorMessage:", errorMessage)
-    console.log("[SETTINGS] - daysUntilExpiry:", daysUntilExpiry)
-    console.log("[SETTINGS] - isRefreshing:", isRefreshing)
-  })
-
-  useEffect(() => {
-    console.log("[SETTINGS] useEffect triggered")
     // Load existing configuration from localStorage
     const savedConfig = ShipHeroAPI.loadFromStorage()
-    console.log("[SETTINGS] Loaded config from storage:", savedConfig ? "found" : "not found")
     if (savedConfig) {
-      console.log("[SETTINGS] Setting up API with saved config")
       setRefreshToken(savedConfig.refreshToken)
       const apiInstance = new ShipHeroAPI(savedConfig)
       setApi(apiInstance)
       setDaysUntilExpiry(apiInstance.getDaysUntilExpiry())
       onConfigChange?.(savedConfig)
-      console.log("[SETTINGS] API instance created and config change callback called")
     }
   }, [onConfigChange])
 
   const handleSaveConfig = async () => {
-    console.log("[SETTINGS] handleSaveConfig called")
-    console.log("[SETTINGS] refreshToken length:", refreshToken.length)
-    
     if (!refreshToken.trim()) {
-      console.log("[SETTINGS] No refresh token provided")
       setErrorMessage("Please enter a refresh token")
       return
     }
 
-    console.log("[SETTINGS] Starting save config process")
     setIsLoading(true)
     setErrorMessage("")
 
     try {
       const config: ShipHeroConfig = { refreshToken: refreshToken.trim() }
-      console.log("[SETTINGS] Created config object")
       const apiInstance = new ShipHeroAPI(config)
-      console.log("[SETTINGS] Created API instance")
       
       // Test the connection immediately
-      console.log("[SETTINGS] Testing connection...")
       await apiInstance.testConnection()
-      console.log("[SETTINGS] Connection test successful")
       
       setApi(apiInstance)
       setConnectionStatus('success')
       setDaysUntilExpiry(apiInstance.getDaysUntilExpiry())
       onConfigChange?.(config)
-      console.log("[SETTINGS] State updated and config change callback called")
       
       // Save to localStorage
       ShipHeroAPI.saveToStorage(config)
-      console.log("[SETTINGS] Config saved to localStorage")
       
     } catch (error) {
-      console.log("[SETTINGS] Error during save config:", error)
       setConnectionStatus('error')
       setErrorMessage(error instanceof Error ? error.message : 'Failed to connect to ShipHero API')
     } finally {
-      console.log("[SETTINGS] Save config process completed")
       setIsLoading(false)
     }
   }
@@ -204,10 +172,7 @@ export function Settings({ onConfigChange }: SettingsProps) {
 
           <div className="flex gap-2">
             <Button 
-              onClick={() => {
-                console.log("[SETTINGS] Save Configuration button clicked")
-                handleSaveConfig()
-              }}
+              onClick={handleSaveConfig}
               disabled={isLoading || !refreshToken.trim()}
             >
               {isLoading ? "Saving..." : "Save Configuration"}
@@ -216,10 +181,7 @@ export function Settings({ onConfigChange }: SettingsProps) {
             {api && (
               <Button 
                 variant="outline" 
-                onClick={() => {
-                  console.log("[SETTINGS] Test Connection button clicked")
-                  handleTestConnection()
-                }}
+                onClick={handleTestConnection}
                 disabled={connectionStatus === 'testing'}
               >
                 <TestTube className="h-4 w-4 mr-2" />
