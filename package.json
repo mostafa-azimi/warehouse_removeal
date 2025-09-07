@@ -6,7 +6,11 @@
     "build": "next build",
     "dev": "next dev",
     "lint": "next lint",
-    "start": "next start"
+    "start": "next start",
+    "commit": "git add . && git commit -m",
+    "push": "git push origin main",
+    "deploy": "npm run build && git add . && git commit -m 'deploy: Build and deploy' && git push origin main",
+    "auto-commit": "./scripts/auto-commit.sh"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
