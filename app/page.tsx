@@ -4,13 +4,38 @@ import { useState } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ShipHeroConfig } from '@/lib/shiphero-api'
 
-// Minimal Settings component for debugging
+// Step-by-step Settings component for debugging
 function MinimalSettings({ onConfigChange }: { onConfigChange?: (config: ShipHeroConfig) => void }) {
   const [token, setToken] = useState("")
   
+  // Step 1: Add localStorage operations
+  const saveToStorage = (config: ShipHeroConfig) => {
+    try {
+      localStorage.setItem('shiphero-config', JSON.stringify(config))
+      console.log('Saved to localStorage:', config)
+    } catch (error) {
+      console.error('localStorage save error:', error)
+    }
+  }
+  
+  const loadFromStorage = () => {
+    try {
+      const saved = localStorage.getItem('shiphero-config')
+      if (saved) {
+        const config = JSON.parse(saved) as ShipHeroConfig
+        setToken(config.refreshToken)
+        console.log('Loaded from localStorage:', config)
+        return config
+      }
+    } catch (error) {
+      console.error('localStorage load error:', error)
+    }
+    return null
+  }
+  
   return (
     <div className="p-6 bg-white rounded-lg shadow space-y-4">
-      <h2 className="text-xl font-semibold">ShipHero Settings - Minimal Version</h2>
+      <h2 className="text-xl font-semibold">ShipHero Settings - Step 1: localStorage</h2>
       
       <div className="space-y-2">
         <label className="block text-sm font-medium">Refresh Token:</label>
@@ -23,19 +48,37 @@ function MinimalSettings({ onConfigChange }: { onConfigChange?: (config: ShipHer
         />
       </div>
       
-      <button
-        onClick={() => {
-          if (token.trim()) {
-            onConfigChange?.({ refreshToken: token.trim() })
-            alert('Token saved! (minimal version)')
-          } else {
-            alert('Please enter a token')
-          }
-        }}
-        className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-      >
-        Save Token
-      </button>
+      <div className="flex gap-2">
+        <button
+          onClick={() => {
+            if (token.trim()) {
+              const config = { refreshToken: token.trim() }
+              saveToStorage(config)
+              onConfigChange?.(config)
+              alert('Token saved to localStorage!')
+            } else {
+              alert('Please enter a token')
+            }
+          }}
+          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+        >
+          Save Token
+        </button>
+        
+        <button
+          onClick={() => {
+            const config = loadFromStorage()
+            if (config) {
+              alert('Token loaded from localStorage!')
+            } else {
+              alert('No saved token found')
+            }
+          }}
+          className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
+        >
+          Load Token
+        </button>
+      </div>
     </div>
   )
 }
