@@ -8,12 +8,47 @@ import { ManifestView } from '@/components/manifest-view'
 import { SettingsComponent } from '@/components/settings'
 import { ShipHeroConfig } from '@/lib/shiphero-api'
 
+// Define types
+export interface InventoryItem {
+  item: string
+  sku: string
+  warehouse: string
+  location: string
+  type: string
+  units: number
+  activeItem: string
+  pickable: string
+  sellable: string
+  creationDate: string
+}
+
+export interface BoxItem {
+  sku: string
+  quantity: number
+  itemName: string
+  location: string
+}
+
+export interface PackedBox {
+  id: string
+  items: BoxItem[]
+  totalItems: number
+  createdAt: string
+}
+
 export default function WarehouseApp() {
   const [activeTab, setActiveTab] = useState('data-import')
   const [shipheroConfig, setShipheroConfig] = useState<ShipHeroConfig | null>(null)
+  const [inventoryData, setInventoryData] = useState<InventoryItem[]>([])
+  const [currentBox, setCurrentBox] = useState<BoxItem[]>([])
+  const [packedBoxes, setPackedBoxes] = useState<PackedBox[]>([])
 
   const handleConfigChange = (config: ShipHeroConfig) => {
     setShipheroConfig(config)
+  }
+
+  const handleDataImported = (data: InventoryItem[]) => {
+    setInventoryData(data)
   }
 
   return (
@@ -30,15 +65,27 @@ export default function WarehouseApp() {
           </TabsList>
           
           <TabsContent value="data-import" className="mt-6">
-            <DataImport />
+            <DataImport 
+              onDataImported={handleDataImported}
+              inventoryData={inventoryData}
+            />
           </TabsContent>
           
           <TabsContent value="qr-scanner" className="mt-6">
-            <QRScanner />
+            <QRScanner 
+              currentBox={currentBox}
+              setCurrentBox={setCurrentBox}
+              packedBoxes={packedBoxes}
+              setPackedBoxes={setPackedBoxes}
+              inventoryData={inventoryData}
+            />
           </TabsContent>
           
           <TabsContent value="manifest" className="mt-6">
-            <ManifestView shipheroConfig={shipheroConfig} />
+            <ManifestView 
+              shipheroConfig={shipheroConfig}
+              packedBoxes={packedBoxes}
+            />
           </TabsContent>
           
           <TabsContent value="settings" className="mt-6">
