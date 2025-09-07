@@ -5,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { DataImport } from '@/components/data-import'
 import { QRScanner } from '@/components/qr-scanner'
 import { ManifestView } from '@/components/manifest-view'
-import { SettingsComponent } from '@/components/settings'
+import { Settings } from '@/components/settings'
 import { ShipHeroConfig } from '@/lib/shiphero-api'
 
 // Define types
@@ -89,7 +89,7 @@ export default function WarehouseApp() {
           </TabsContent>
           
           <TabsContent value="settings" className="mt-6">
-            <SettingsComponent onConfigChange={handleConfigChange} />
+            <Settings onConfigChange={handleConfigChange} />
           </TabsContent>
         </Tabs>
       </div>
