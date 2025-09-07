@@ -55,8 +55,8 @@ export default function WarehouseApp() {
           <div className="flex items-center gap-3">
             <Package className="h-8 w-8 text-primary" />
             <div>
-              <h1 className="text-2xl font-bold text-foreground">Removal Hero</h1>
-              <p className="text-muted-foreground">Generate QR codes, scan items, and manage inventory</p>
+              <h1 className="text-2xl font-bold text-foreground">Warehouse Removal</h1>
+              <p className="text-muted-foreground">Generate QR codes, scan items, and manage inventory removal with ShipHero integration</p>
             </div>
           </div>
         </div>

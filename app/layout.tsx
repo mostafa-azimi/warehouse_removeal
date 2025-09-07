@@ -5,8 +5,8 @@ import { GeistMono } from "geist/font/mono"
 import "./globals.css"
 
 export const metadata: Metadata = {
-  title: "Removal Hero",
-  description: "Generate QR codes, scan items, and manage inventory",
+  title: "Warehouse Removal",
+  description: "Generate QR codes, scan items, and manage inventory removal with ShipHero integration",
   generator: "v0.app",
 }
 

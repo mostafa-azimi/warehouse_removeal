@@ -1,30 +1,43 @@
-# Product QR code generation
+# Warehouse Removal
 
-*Automatically synced with your [v0.app](https://v0.app) deployments*
+*QR code generation, inventory scanning, and ShipHero integration for warehouse removal operations*
 
-[![Deployed on Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black?style=for-the-badge&logo=vercel)](https://vercel.com/mikeazimi-dischubcoms-projects/v0-product-qr-code-generation)
-[![Built with v0](https://img.shields.io/badge/Built%20with-v0.app-black?style=for-the-badge)](https://v0.app/chat/projects/G3FFUY7UM7s)
+[![Deployed on Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black?style=for-the-badge&logo=vercel)](https://vercel.com/mikeazimi-dischubcoms-projects/warehouse-removal)
+[![Built with Next.js](https://img.shields.io/badge/Built%20with-Next.js-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
 
 ## Overview
 
-This repository will stay in sync with your deployed chats on [v0.app](https://v0.app).
-Any changes you make to your deployed app will be automatically pushed to this repository from [v0.app](https://v0.app).
+A comprehensive warehouse removal management system that streamlines inventory scanning, packing, and order creation with ShipHero integration. Features QR code generation, real-time scanning, manifest management, and automated sales order creation.
 
-## Deployment
+## Features
 
-Your project is live at:
+- **QR Code Generation**: Create QR codes for inventory items
+- **Real-time Scanning**: Scan QR codes to build packing boxes
+- **Inventory Management**: Import and manage warehouse inventory data
+- **Manifest Generation**: Export packing manifests in multiple formats
+- **ShipHero Integration**: Create sales orders directly in ShipHero
+- **Token Management**: Secure API token handling with auto-refresh
+- **Warehouse Testing**: Test API connections and view warehouse info
 
-**[https://vercel.com/mikeazimi-dischubcoms-projects/v0-product-qr-code-generation](https://vercel.com/mikeazimi-dischubcoms-projects/v0-product-qr-code-generation)**
+## Tech Stack
 
-## Build your app
+- **Frontend**: Next.js 15, React 19, TypeScript
+- **UI Components**: Radix UI, Tailwind CSS
+- **API Integration**: ShipHero GraphQL API
+- **Authentication**: JWT token management
+- **Deployment**: Vercel
 
-Continue building your app on:
+## Getting Started
 
-**[https://v0.app/chat/projects/G3FFUY7UM7s](https://v0.app/chat/projects/G3FFUY7UM7s)**
+1. Clone the repository
+2. Install dependencies: `npm install`
+3. Configure ShipHero API in Settings
+4. Start development server: `npm run dev`
 
-## How It Works
+## ShipHero Integration
 
-1. Create and modify your project using [v0.app](https://v0.app)
-2. Deploy your chats from the v0 interface
-3. Changes are automatically pushed to this repository
-4. Vercel deploys the latest version from this repository
+The app integrates with ShipHero's GraphQL API to:
+- Test API connections and display warehouse information
+- Create sales orders from packed boxes
+- Manage authentication tokens with automatic refresh
+- Streamline the removal process with automated order creation
