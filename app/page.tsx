@@ -3,10 +3,12 @@
 import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Upload, Scan, Package, FileText } from "lucide-react"
+import { Upload, Scan, Package, FileText, Settings } from "lucide-react"
 import { DataImport } from "@/components/data-import"
 import { QRScanner } from "@/components/qr-scanner"
 import { ManifestView } from "@/components/manifest-view"
+import { Settings as SettingsComponent } from "@/components/settings"
+import { ShipHeroConfig } from "@/lib/shiphero-api"
 
 export interface InventoryItem {
   item: string
@@ -40,6 +42,7 @@ export default function WarehouseApp() {
   const [packedBoxes, setPackedBoxes] = useState<PackedBox[]>([])
   const [currentBox, setCurrentBox] = useState<BoxItem[]>([])
   const [activeTab, setActiveTab] = useState("import")
+  const [shipheroConfig, setShipheroConfig] = useState<ShipHeroConfig | null>(null)
 
   console.log("[v0] Current active tab:", activeTab)
   console.log("[v0] Inventory data length:", inventoryData.length)
@@ -61,7 +64,7 @@ export default function WarehouseApp() {
 
       <main className="container mx-auto px-4 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="import" className="flex items-center gap-2">
               <Upload className="h-4 w-4" />
               Import Data
@@ -73,6 +76,10 @@ export default function WarehouseApp() {
             <TabsTrigger value="manifest" className="flex items-center gap-2">
               <FileText className="h-4 w-4" />
               Manifest
+            </TabsTrigger>
+            <TabsTrigger value="settings" className="flex items-center gap-2">
+              <Settings className="h-4 w-4" />
+              Settings
             </TabsTrigger>
           </TabsList>
 
@@ -123,6 +130,10 @@ export default function WarehouseApp() {
                 <ManifestView packedBoxes={packedBoxes} />
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="settings">
+            <SettingsComponent onConfigChange={setShipheroConfig} />
           </TabsContent>
         </Tabs>
       </main>
