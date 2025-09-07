@@ -2,19 +2,30 @@
 
 import { useState, useEffect } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { ShipHeroConfig } from '@/lib/shiphero-api'
+import { ShipHeroConfig, ShipHeroAPI } from '@/lib/shiphero-api'
 
 // Step-by-step Settings component for debugging
 function MinimalSettings({ onConfigChange }: { onConfigChange?: (config: ShipHeroConfig) => void }) {
   const [token, setToken] = useState("")
+  const [api, setApi] = useState<ShipHeroAPI | null>(null)
   
-  // Step 2: Add useEffect to auto-load on mount
+  // Step 3: Add ShipHero API initialization
   useEffect(() => {
     console.log('useEffect running - loading from localStorage')
     const config = loadFromStorage()
     if (config) {
       console.log('Auto-loaded config:', config)
-      onConfigChange?.(config)
+      
+      // Initialize ShipHero API
+      try {
+        console.log('Creating ShipHero API instance...')
+        const apiInstance = new ShipHeroAPI(config)
+        setApi(apiInstance)
+        console.log('ShipHero API instance created successfully')
+        onConfigChange?.(config)
+      } catch (error) {
+        console.error('Error creating ShipHero API instance:', error)
+      }
     }
   }, []) // Empty dependency array - should only run once
   
@@ -45,7 +56,7 @@ function MinimalSettings({ onConfigChange }: { onConfigChange?: (config: ShipHer
   
   return (
     <div className="p-6 bg-white rounded-lg shadow space-y-4">
-      <h2 className="text-xl font-semibold">ShipHero Settings - Step 2: useEffect</h2>
+      <h2 className="text-xl font-semibold">ShipHero Settings - Step 3: API Init</h2>
       
       <div className="space-y-2">
         <label className="block text-sm font-medium">Refresh Token:</label>
@@ -64,8 +75,19 @@ function MinimalSettings({ onConfigChange }: { onConfigChange?: (config: ShipHer
             if (token.trim()) {
               const config = { refreshToken: token.trim() }
               saveToStorage(config)
-              onConfigChange?.(config)
-              alert('Token saved to localStorage!')
+              
+              // Initialize API when saving
+              try {
+                console.log('Creating ShipHero API instance on save...')
+                const apiInstance = new ShipHeroAPI(config)
+                setApi(apiInstance)
+                console.log('API instance created on save')
+                onConfigChange?.(config)
+                alert('Token saved and API initialized!')
+              } catch (error) {
+                console.error('Error creating API instance on save:', error)
+                alert('Token saved but API initialization failed')
+              }
             } else {
               alert('Please enter a token')
             }
