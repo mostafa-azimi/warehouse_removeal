@@ -58,12 +58,13 @@ export async function POST(request: NextRequest) {
           email: orderData.shippingAddress.email || orderData.customerEmail,
           phone: orderData.shippingAddress.phone,
         },
-        line_items: orderData.lineItems.map((item: any) => ({
+        line_items: orderData.lineItems.map((item: any, index: number) => ({
           sku: item.sku,
           quantity: item.quantity,
           price: item.price.toString(),
           product_name: item.productName || `Product ${item.sku}`,
           fulfillment_status: "pending",
+          partner_line_item_id: `${item.sku}-${index}-${Date.now()}`, // Required unique identifier
         })),
       },
     };
