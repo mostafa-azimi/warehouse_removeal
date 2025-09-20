@@ -60,8 +60,8 @@ async function fetchProductLocations(accessToken: string, customerAccountId: str
       })
     }
 
-    // Query with locations - but with smaller batch size to manage credits
-    // Each product with locations is expensive, so we'll do smaller batches
+    // Try a different approach - get location data from a separate query or use inventory_bin
+    // Since the locations.name field seems to not be available in your GraphQL schema
     const query = `
       query GetProductLocationsByClient($customer_account_id: String!, $first: Int = 100) {
         warehouse_products(customer_account_id: $customer_account_id) {
@@ -79,19 +79,11 @@ async function fetchProductLocations(accessToken: string, customerAccountId: str
                   name
                   sku
                   barcode
+                  account_id
                 }
                 warehouse {
                   id
-                }
-                locations(first: 20) {
-                  edges {
-                    node {
-                      id
-                      name
-                      quantity
-                      warehouse_id
-                    }
-                  }
+                  account_id
                 }
               }
             }
@@ -104,10 +96,10 @@ async function fetchProductLocations(accessToken: string, customerAccountId: str
       }
     `
 
-    // Much smaller batch size since locations are expensive
+    // Increased batch size since we removed expensive location queries
     const variables = {
       customer_account_id: customerAccountId,
-      first: 15  // Very small batch to stay within credit limits with location data
+      first: 50  // Can increase since no location sub-queries
     }
 
     const requestBody = { query, variables }

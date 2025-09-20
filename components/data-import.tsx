@@ -202,37 +202,13 @@ export function DataImport({ onDataImported, inventoryData }: DataImportProps) {
           }
         }
         
-        // Create individual entries for each bin location
-        if (product.locations?.edges?.length > 0) {
-          product.locations.edges.forEach((locationEdge: any, locationIndex: number) => {
-            const location = locationEdge.node
-            
-            // Use the actual location name (like "PS01-01", "A02-02-A-03", etc.)
-            const binLocation = location.name || `Bin-${location.id?.substring(0, 8) || 'Unknown'}`
-            
-            // Only add locations with quantity > 0
-            if (location.quantity > 0) {
-              transformedData.push({
-                item: productInfo?.name || 'Unknown Product',
-                sku: productInfo?.sku || '',
-                warehouse: warehouseName,
-                location: binLocation,
-                type: 'product',
-                units: location.quantity, // Use specific location quantity
-                activeItem: 'yes', // Active since it has quantity
-                pickable: 'yes', // Default for locations with inventory
-                sellable: 'yes', // Default for locations with inventory
-                creationDate: new Date().toISOString().split('T')[0]
-              })
-            }
-          })
-        } else if (product.inventory_bin && product.on_hand > 0) {
-          // Fallback: if no specific locations but has inventory_bin
+        // Use inventory_bin which should contain the actual location names like "PS01-01"
+        if (product.inventory_bin && product.on_hand > 0) {
           transformedData.push({
             item: productInfo?.name || 'Unknown Product',
             sku: productInfo?.sku || '',
             warehouse: warehouseName,
-            location: product.inventory_bin,
+            location: product.inventory_bin, // This should contain "PS01-01", "A02-02-A-03", etc.
             type: 'product',
             units: product.on_hand,
             activeItem: 'yes',
