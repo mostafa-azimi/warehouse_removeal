@@ -43,8 +43,7 @@ export async function POST(request: NextRequest) {
         currency: "USD",
         email: orderData.customerEmail,
         ...(orderData.customerAccountId && { 
-          partner_order_id: orderData.customerAccountId,
-          account_id: btoa(`Account:${orderData.customerAccountId}`) // Encode account ID for ShipHero
+          customer_account_id: orderData.customerAccountId // Use this when you are a 3PL acting on behalf of one of your customers
         }),
         shipping_lines: {
           title: "Standard Shipping",
