@@ -213,11 +213,11 @@ function SimpleSettings({ onConfigChange }: { onConfigChange?: (config: ShipHero
       console.log('[FRONTEND] Extracted warehouses:', warehouses)
       console.log('[FRONTEND] Warehouse count:', warehouses.length)
       
-      // Transform the warehouse data to match the expected format
+      // Transform the warehouse data to match the expected format based on actual API response
       const transformedWarehouses = warehouses.map((warehouse: any) => ({
         id: warehouse.id,
         identifier: warehouse.identifier,
-        name: warehouse.profile?.name || warehouse.identifier, // Use profile name or fallback to identifier
+        name: warehouse.address?.name || warehouse.identifier, // Use address name or fallback to identifier
         address: {
           name: warehouse.address?.name || '',
           address1: warehouse.address?.address1 || '',
@@ -228,12 +228,13 @@ function SimpleSettings({ onConfigChange }: { onConfigChange?: (config: ShipHero
           country: warehouse.address?.country || ''
         },
         is_active: true, // Assume active since it's returned from API
-        decodedId: warehouse.legacy_id || warehouse.id,
-        // Additional fields from the API
-        profile: warehouse.profile,
-        settings: warehouse.settings,
-        created_at: warehouse.created_at,
-        updated_at: warehouse.updated_at
+        decodedId: warehouse.legacy_id?.toString() || warehouse.id,
+        // Additional fields from the actual API response
+        account_id: warehouse.account_id,
+        dynamic_slotting: warehouse.dynamic_slotting,
+        invoice_email: warehouse.invoice_email,
+        phone_number: warehouse.phone_number,
+        profile: warehouse.profile
       }))
       
       setWarehouses(transformedWarehouses)
@@ -400,64 +401,56 @@ function SimpleSettings({ onConfigChange }: { onConfigChange?: (config: ShipHero
         </div>
       </div>
 
-      {/* Warehouse Results Table */}
+      {/* Connection Test Results */}
       {warehouses.length > 0 && (
-        <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-xl font-bold text-gray-900 mb-4">
-            ✅ Connection Successful - Your Warehouses ({warehouses.length})
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+          <h3 className="text-lg font-semibold text-blue-900 mb-4">
+            Connection Test Results
           </h3>
+          <div className="mb-4">
+            <span className="text-blue-700 font-medium">
+              Status: Connected successfully • {warehouses.length} warehouses found
+            </span>
+          </div>
           
+          <details className="mb-4">
+            <summary className="text-blue-600 cursor-pointer hover:text-blue-800 font-medium">
+              ▶ Debug: Warehouse data
+            </summary>
+          </details>
+
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+            <table className="min-w-full divide-y divide-blue-200 bg-white rounded-lg shadow-sm">
+              <thead className="bg-blue-100">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-blue-900 uppercase tracking-wider">
+                    ID
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-blue-900 uppercase tracking-wider">
                     Name
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Identifier
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-blue-900 uppercase tracking-wider">
                     Address
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Decoded ID
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-white divide-y divide-blue-100">
                 {warehouses.map((warehouse, index) => (
-                  <tr key={warehouse.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {warehouse.name}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {warehouse.identifier}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-500">
-                      <div>
-                        {warehouse.address.address1}
-                        {warehouse.address.address2 && <div>{warehouse.address.address2}</div>}
-                        <div>
-                          {warehouse.address.city}, {warehouse.address.state} {warehouse.address.zip}
-                        </div>
-                        <div>{warehouse.address.country}</div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">
+                  <tr key={warehouse.id} className={index % 2 === 0 ? 'bg-white' : 'bg-blue-50'}>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm font-mono text-gray-900">
                       {warehouse.decodedId}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                        warehouse.is_active 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-red-100 text-red-800'
-                      }`}>
-                        {warehouse.is_active ? 'Active' : 'Inactive'}
-                      </span>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                      {warehouse.name}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-700">
+                      <div className="space-y-1">
+                        <div>{warehouse.address.address1}</div>
+                        {warehouse.address.address2 && <div>{warehouse.address.address2}</div>}
+                        <div className="text-gray-500">
+                          {warehouse.address.city}, {warehouse.address.state} {warehouse.address.zip}
+                        </div>
+                      </div>
                     </td>
                   </tr>
                 ))}

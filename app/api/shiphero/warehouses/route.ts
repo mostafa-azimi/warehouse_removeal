@@ -74,7 +74,7 @@ async function fetchWarehouses(accessToken: string) {
     })
   }
 
-  // Use the correct warehouse query structure from the official documentation
+  // Use the warehouse query structure that matches the actual API response
   const query = `
     query GetAllWarehouses {
       account {
@@ -85,6 +85,7 @@ async function fetchWarehouses(accessToken: string) {
             id
             legacy_id
             identifier
+            account_id
             address {
               name
               address1
@@ -95,17 +96,10 @@ async function fetchWarehouses(accessToken: string) {
               zip
               phone
             }
-            profile {
-              name
-              timezone
-            }
-            settings {
-              auto_allocate
-              auto_ship
-              default_box_id
-            }
-            created_at
-            updated_at
+            dynamic_slotting
+            invoice_email
+            phone_number
+            profile
           }
         }
       }
