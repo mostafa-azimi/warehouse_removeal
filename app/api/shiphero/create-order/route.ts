@@ -3,13 +3,13 @@ import { NextRequest, NextResponse } from 'next/server'
 export async function POST(request: NextRequest) {
   try {
     console.log('ShipHero create order API route called (POST)')
-    
+
     const requestBody = await request.json()
     const { accessToken, orderData } = requestBody
-    
+
     console.log('Access token received:', accessToken ? 'Present' : 'Missing')
-    console.log('Order data received:', !!orderData)
-    
+    console.log('Order data received:', JSON.stringify(orderData, null, 2))
+
     if (!accessToken) {
       return NextResponse.json({ error: 'Access token is required' }, { status: 401 })
     }
@@ -18,9 +18,68 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Order data is required' }, { status: 400 })
     }
 
+    // FIXED: Removed user_errors and used direct mutation structure
     const mutation = `
-      mutation CreateOrder($data: CreateOrderInput!) {
-        order_create(data: $data) {
+      mutation {
+        order_create(
+          data: {
+            order_number: "${orderData.orderNumber}"
+            shop_name: "${orderData.shopName || 'Warehouse Removal'}"
+            fulfillment_status: "pending"
+            order_date: "${new Date().toISOString().split('T')[0]}"
+            total_tax: "0.00"
+            subtotal: "${orderData.subtotal || '0.00'}"
+            total_discounts: "0.00"
+            total_price: "${orderData.totalPrice || '0.00'}"
+            ${orderData.customerAccountId ? `account_id: "${orderData.customerAccountId}"` : ''}
+            email: "${orderData.customerEmail}"
+            shipping_lines: {
+              title: "Standard Shipping"
+              price: "0.00"
+              carrier: "USPS"
+              method: "Ground"
+            }
+            shipping_address: {
+              first_name: "${orderData.shippingAddress.firstName}"
+              last_name: "${orderData.shippingAddress.lastName}"
+              address1: "${orderData.shippingAddress.address1}"
+              ${orderData.shippingAddress.address2 ? `address2: "${orderData.shippingAddress.address2}"` : ''}
+              city: "${orderData.shippingAddress.city}"
+              state: "${orderData.shippingAddress.state}"
+              zip: "${orderData.shippingAddress.zip}"
+              country: "${orderData.shippingAddress.country || 'US'}"
+              country_code: "${orderData.shippingAddress.country || 'US'}"
+              email: "${orderData.customerEmail}"
+              ${orderData.shippingAddress.phone ? `phone: "${orderData.shippingAddress.phone}"` : ''}
+            }
+            billing_address: {
+              first_name: "${orderData.shippingAddress.firstName}"
+              last_name: "${orderData.shippingAddress.lastName}"
+              address1: "${orderData.shippingAddress.address1}"
+              ${orderData.shippingAddress.address2 ? `address2: "${orderData.shippingAddress.address2}"` : ''}
+              city: "${orderData.shippingAddress.city}"
+              state: "${orderData.shippingAddress.state}"
+              zip: "${orderData.shippingAddress.zip}"
+              country: "${orderData.shippingAddress.country || 'US'}"
+              country_code: "${orderData.shippingAddress.country || 'US'}"
+              email: "${orderData.customerEmail}"
+              ${orderData.shippingAddress.phone ? `phone: "${orderData.shippingAddress.phone}"` : ''}
+            }
+            line_items: [
+              ${orderData.lineItems.map((item: any, index: number) => `
+                {
+                  sku: "${item.sku}"
+                  partner_line_item_id: "${Date.now()}-${index}"
+                  quantity: ${item.quantity}
+                  price: "${item.price || '0.00'}"
+                  product_name: "${item.productName}"
+                  fulfillment_status: "pending"
+                  quantity_pending_fulfillment: ${item.quantity}
+                }
+              `).join(',')}
+            ]
+          }
+        ) {
           request_id
           complexity
           order {
@@ -29,124 +88,50 @@ export async function POST(request: NextRequest) {
             order_number
             fulfillment_status
             account_id
+            email
           }
         }
       }
     `;
 
-    const variables = {
-      data: {
-        order_number: orderData.orderNumber,
-        shop_name: orderData.shopName || "Warehouse Removal",
-        fulfillment_status: "pending",
-        order_date: new Date().toISOString(),
-        subtotal: orderData.subtotal.toString(),
-        total_price: orderData.totalPrice.toString(),
-        currency: "USD",
-        email: orderData.customerEmail,
-        ...(orderData.customerAccountId && { 
-          account_id: orderData.customerAccountId // 3PL client account ID
-        }),
-        shipping_lines: {
-          title: "Standard Shipping",
-          price: "0.00",
-          carrier: "USPS",
-          method: "Ground"
-        },
-        shipping_address: {
-          first_name: orderData.shippingAddress.firstName,
-          last_name: orderData.shippingAddress.lastName,
-          address1: orderData.shippingAddress.address1,
-          address2: orderData.shippingAddress.address2,
-          city: orderData.shippingAddress.city,
-          state: orderData.shippingAddress.state,
-          zip: orderData.shippingAddress.zip,
-          country: orderData.shippingAddress.country,
-          email: orderData.shippingAddress.email || orderData.customerEmail,
-          phone: orderData.shippingAddress.phone,
-        },
-        billing_address: {
-          first_name: orderData.shippingAddress.firstName,
-          last_name: orderData.shippingAddress.lastName,
-          address1: orderData.shippingAddress.address1,
-          address2: orderData.shippingAddress.address2,
-          city: orderData.shippingAddress.city,
-          state: orderData.shippingAddress.state,
-          zip: orderData.shippingAddress.zip,
-          country: orderData.shippingAddress.country,
-        },
-        line_items: orderData.lineItems.map((item: any, index: number) => ({
-          sku: item.sku,
-          quantity: item.quantity,
-          price: item.price.toString(),
-          product_name: item.productName || `Product ${item.sku}`,
-          fulfillment_status: "pending",
-          partner_line_item_id: `${item.sku}-${index}-${Date.now()}`, // Required unique identifier
-        })),
-      },
-    };
-
-    console.log('[CREATE ORDER API] Customer account ID received:', orderData.customerAccountId)
-    console.log('[CREATE ORDER API] Order creation variables:', JSON.stringify(variables, null, 2))
+    console.log('GraphQL Mutation:', mutation)
 
     const response = await fetch('https://public-api.shiphero.com/graphql', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
         'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ query: mutation, variables }),
-    });
-
-    console.log('[CREATE ORDER API] ShipHero response status:', response.status)
-
-    if (!response.ok) {
-      const errorText = await response.text()
-      console.log('[CREATE ORDER API] ShipHero error response:', errorText)
-      return NextResponse.json(
-        { error: `ShipHero API error: ${response.status} ${response.statusText}`, details: errorText },
-        { status: response.status }
-      )
-    }
-
-    const data = await response.json()
-    console.log('[CREATE ORDER API] ShipHero response:', data)
-
-    if (data.errors && data.errors.length > 0) {
-      console.log('[CREATE ORDER API] GraphQL errors found:', data.errors)
-      return NextResponse.json(
-        { error: 'GraphQL errors in response', details: data.errors },
-        { status: 400 }
-      )
-    }
-
-    // Check if order creation was successful
-    if (!data.data?.order_create?.order) {
-      console.log('[CREATE ORDER API] No order returned in response')
-      return NextResponse.json(
-        { error: 'Order creation failed - no order returned' },
-        { status: 400 }
-      )
-    }
-
-    const orderId = data.data.order_create.order.id
-    const accountId = data.data.order_create.order.account_id
-    console.log('[CREATE ORDER API] Created order with ID:', orderId)
-    console.log('[CREATE ORDER API] Order created for account:', accountId)
-
-    return NextResponse.json({
-      success: true,
-      orderId,
-      orderNumber: data.data.order_create.order.order_number,
-      accountId: accountId,
-      data: data.data
+      body: JSON.stringify({
+        query: mutation
+      } )
     })
 
-  } catch (error: any) {
-    console.error('ShipHero create order API error:', error)
-    return NextResponse.json(
-      { error: 'Internal server error', details: error.message },
-      { status: 500 }
-    )
+    const responseText = await response.text()
+    console.log('ShipHero Response Status:', response.status)
+    console.log('ShipHero Response Body:', responseText)
+
+    if (!response.ok) {
+      throw new Error(`ShipHero API error: ${response.status} ${response.statusText}`)
+    }
+
+    const data = JSON.parse(responseText)
+
+    if (data.errors) {
+      console.error('GraphQL Errors:', data.errors)
+      return NextResponse.json({ 
+        error: 'ShipHero GraphQL error',
+        details: data.errors
+      }, { status: 400 })
+    }
+
+    return NextResponse.json(data)
+
+  } catch (error) {
+    console.error('Create order API error:', error)
+    return NextResponse.json({ 
+      error: 'Internal server error',
+      details: (error as Error).message
+    }, { status: 500 })
   }
 }
