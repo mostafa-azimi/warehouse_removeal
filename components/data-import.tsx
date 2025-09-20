@@ -412,52 +412,7 @@ export function DataImport({ onDataImported, inventoryData }: DataImportProps) {
 
   return (
     <div className="space-y-6">
-      <div className="border-4 border-dashed border-cyan-400 rounded-xl p-8 bg-gradient-to-br from-cyan-50 to-blue-50 shadow-lg">
-        <div className="text-center space-y-6">
-          <div className="bg-cyan-100 rounded-full w-20 h-20 mx-auto flex items-center justify-center">
-            <Upload className="h-10 w-10 text-cyan-600" />
-          </div>
-          <div>
-            <h2 className="text-2xl font-bold text-cyan-900 mb-2">Upload Your Inventory CSV File</h2>
-            <p className="text-base text-cyan-700 max-w-md mx-auto">
-              Select your warehouse inventory CSV file to import all products and generate QR codes instantly
-            </p>
-          </div>
-          <div className="space-y-4">
-            <Label htmlFor="csv-file" className="sr-only">
-              Upload CSV File
-            </Label>
-            <div className="relative">
-              <Input
-                id="csv-file"
-                type="file"
-                accept=".csv"
-                onChange={handleFileUpload}
-                disabled={isLoading}
-                className="max-w-lg mx-auto h-12 text-base border-2 border-cyan-300 focus:border-cyan-500 bg-white"
-              />
-            </div>
-            <div className="pt-2">
-              <Button
-                onClick={() => document.getElementById("csv-file")?.click()}
-                disabled={isLoading}
-                size="lg"
-                className="bg-cyan-600 hover:bg-cyan-700 text-white px-8 py-3 text-lg font-semibold"
-              >
-                <Upload className="mr-3 h-5 w-5" />
-                Choose CSV File to Upload
-              </Button>
-            </div>
-          </div>
-          {isLoading && (
-            <div className="bg-white rounded-lg p-4 border border-cyan-200">
-              <p className="text-base text-cyan-600 font-medium">Processing your file...</p>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* 3PL API Import Section */}
+      {/* 3PL API Import Section - Moved to top */}
       <div className="border-4 border-dashed border-purple-400 rounded-xl p-8 bg-gradient-to-br from-purple-50 to-indigo-50 shadow-lg">
         <div className="text-center space-y-6">
           <div className="bg-purple-100 rounded-full w-20 h-20 mx-auto flex items-center justify-center">
@@ -509,6 +464,52 @@ export function DataImport({ onDataImported, inventoryData }: DataImportProps) {
               <div className="mt-2 text-sm text-purple-500">
                 This may take a few moments depending on inventory size
               </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* CSV Upload Section - Moved below API Import */}
+      <div className="border-4 border-dashed border-cyan-400 rounded-xl p-8 bg-gradient-to-br from-cyan-50 to-blue-50 shadow-lg">
+        <div className="text-center space-y-6">
+          <div className="bg-cyan-100 rounded-full w-20 h-20 mx-auto flex items-center justify-center">
+            <Upload className="h-10 w-10 text-cyan-600" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold text-cyan-900 mb-2">Upload Your Inventory CSV File</h2>
+            <p className="text-base text-cyan-700 max-w-md mx-auto">
+              Select your warehouse inventory CSV file to import all products and generate QR codes instantly
+            </p>
+          </div>
+          <div className="space-y-4">
+            <Label htmlFor="csv-file" className="sr-only">
+              Upload CSV File
+            </Label>
+            <div className="relative">
+              <Input
+                id="csv-file"
+                type="file"
+                accept=".csv"
+                onChange={handleFileUpload}
+                disabled={isLoading}
+                className="max-w-lg mx-auto h-12 text-base border-2 border-cyan-300 focus:border-cyan-500 bg-white"
+              />
+            </div>
+            <div className="pt-2">
+              <Button
+                onClick={() => document.getElementById("csv-file")?.click()}
+                disabled={isLoading}
+                size="lg"
+                className="bg-cyan-600 hover:bg-cyan-700 text-white px-8 py-3 text-lg font-semibold"
+              >
+                <Upload className="mr-3 h-5 w-5" />
+                Choose CSV File to Upload
+              </Button>
+            </div>
+          </div>
+          {isLoading && (
+            <div className="bg-white rounded-lg p-4 border border-cyan-200">
+              <p className="text-base text-cyan-600 font-medium">Processing your file...</p>
             </div>
           )}
         </div>

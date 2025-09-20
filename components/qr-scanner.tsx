@@ -63,40 +63,36 @@ export function QRScanner({ currentBox, setCurrentBox, packedBoxes, setPackedBox
     }
   }, [packedBoxes])
 
+  // Simplified: Just try to parse on every input change
   useEffect(() => {
     if (bufferTimeout) {
       clearTimeout(bufferTimeout)
     }
 
     if (inputBuffer.trim()) {
-      // Try to parse immediately for complete JSON
-      try {
-        const parsedData = JSON.parse(inputBuffer)
-        if (parsedData.sku && parsedData.quantity) {
-          console.log("[v0] Auto-processing complete JSON:", inputBuffer)
-          setQrInput(inputBuffer)
-          processScan(inputBuffer)
-          setInputBuffer("")
-          return
-        }
-      } catch {
-        // Not complete JSON yet, wait briefly
-      }
-
-      // Only wait 20ms for incomplete input (ultra fast)
-      const timeout = setTimeout(() => {
+      // Simple approach: try immediate parsing, then short delay
+      const tryParse = () => {
         try {
           const parsedData = JSON.parse(inputBuffer)
           if (parsedData.sku && parsedData.quantity) {
-            console.log("[v0] Auto-processing buffered input:", inputBuffer)
-            setQrInput(inputBuffer)
+            console.log("[v0] Successfully parsed QR:", inputBuffer)
             processScan(inputBuffer)
             setInputBuffer("")
+            return true
           }
         } catch {
-          // Still not valid JSON, ignore
+          return false
         }
-      }, 20) // Ultra fast: 20ms for barcode scanners
+        return false
+      }
+
+      // Try immediate parsing
+      if (tryParse()) return
+
+      // If not ready, wait just 10ms (minimal delay)
+      const timeout = setTimeout(() => {
+        tryParse()
+      }, 10)
 
       setBufferTimeout(timeout)
     }
@@ -184,24 +180,7 @@ export function QRScanner({ currentBox, setCurrentBox, packedBoxes, setPackedBox
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value
     setQrInput(value)
-    setInputBuffer(value)
-    
-    // Immediate processing for complete JSON (barcode scanners often send complete data)
-    if (value.trim().startsWith('{') && value.trim().endsWith('}')) {
-      try {
-        const parsedData = JSON.parse(value)
-        if (parsedData.sku && parsedData.quantity) {
-          console.log("[v0] Immediate processing of complete JSON:", value)
-          // Process immediately without waiting
-          setTimeout(() => {
-            processScan(value)
-          }, 10) // Minimal delay to allow UI update
-          return
-        }
-      } catch {
-        // Not valid JSON, continue with buffer system
-      }
-    }
+    setInputBuffer(value) // This triggers the useEffect parsing
   }
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
