@@ -104,9 +104,11 @@ async function fetchProductLocations(accessToken: string, customerAccountId: str
       }
     `
 
+    // Start with a much smaller batch to stay within credit limits
+    // The error shows 5101 credits needed for 100 items, so let's try 10-20 items first
     const variables = {
       customer_account_id: customerAccountId,
-      first: 100
+      first: 10  // Much smaller batch size to stay within 2002 credit limit
     }
 
     const requestBody = { query, variables }
@@ -172,6 +174,27 @@ async function fetchProductLocations(accessToken: string, customerAccountId: str
     // Check for GraphQL errors even with 200 status
     if (data.errors && data.errors.length > 0) {
       console.log('[PRODUCT LOCATIONS API] GraphQL errors found:', data.errors)
+      
+      // Check for credit limit errors specifically
+      const creditError = data.errors.find((error: any) => error.code === 30)
+      if (creditError) {
+        return NextResponse.json(
+          { 
+            error: 'ShipHero API Credit Limit Exceeded', 
+            message: `This customer account has too much inventory to query all at once. Required: ${creditError.required_credits} credits, Available: ${creditError.remaining_credits} credits.`,
+            suggestion: 'Try querying a smaller subset of products or contact ShipHero to increase your API credit limits.',
+            details: data.errors,
+            requestInfo: {
+              customerAccountId,
+              accountIdFormat: 'Direct numeric string',
+              queryUsed: 'warehouse_products',
+              batchSize: variables.first
+            }
+          },
+          { status: 429 } // 429 Too Many Requests is appropriate for rate limiting
+        )
+      }
+      
       return NextResponse.json(
         { 
           error: 'GraphQL errors in response', 
