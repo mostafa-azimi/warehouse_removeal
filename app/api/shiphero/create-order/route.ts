@@ -25,8 +25,24 @@ export async function POST(request: NextRequest) {
           complexity
           order {
             id
+            legacy_id
             order_number
             fulfillment_status
+            account_id
+            line_items {
+              edges {
+                node {
+                  id
+                  sku
+                  quantity
+                  product_name
+                }
+              }
+            }
+          }
+          user_errors {
+            field
+            message
           }
         }
       }
@@ -43,11 +59,13 @@ export async function POST(request: NextRequest) {
         currency: "USD",
         email: orderData.customerEmail,
         ...(orderData.customerAccountId && { 
-          customer_account_id: orderData.customerAccountId // Use this when you are a 3PL acting on behalf of one of your customers
+          account_id: orderData.customerAccountId // 3PL client account ID
         }),
         shipping_lines: {
           title: "Standard Shipping",
-          price: "0.00"
+          price: "0.00",
+          carrier: "USPS",
+          method: "Ground"
         },
         shipping_address: {
           first_name: orderData.shippingAddress.firstName,
@@ -60,6 +78,16 @@ export async function POST(request: NextRequest) {
           country: orderData.shippingAddress.country,
           email: orderData.shippingAddress.email || orderData.customerEmail,
           phone: orderData.shippingAddress.phone,
+        },
+        billing_address: {
+          first_name: orderData.shippingAddress.firstName,
+          last_name: orderData.shippingAddress.lastName,
+          address1: orderData.shippingAddress.address1,
+          address2: orderData.shippingAddress.address2,
+          city: orderData.shippingAddress.city,
+          state: orderData.shippingAddress.state,
+          zip: orderData.shippingAddress.zip,
+          country: orderData.shippingAddress.country,
         },
         line_items: orderData.lineItems.map((item: any, index: number) => ({
           sku: item.sku,
@@ -105,13 +133,25 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Check for user_errors in the response
+    if (data.data?.order_create?.user_errors && data.data.order_create.user_errors.length > 0) {
+      console.log('[CREATE ORDER API] User errors found:', data.data.order_create.user_errors)
+      return NextResponse.json(
+        { error: 'Order creation failed', details: data.data.order_create.user_errors },
+        { status: 400 }
+      )
+    }
+
     const orderId = data.data.order_create.order.id
+    const accountId = data.data.order_create.order.account_id
     console.log('[CREATE ORDER API] Created order with ID:', orderId)
+    console.log('[CREATE ORDER API] Order created for account:', accountId)
 
     return NextResponse.json({
       success: true,
       orderId,
       orderNumber: data.data.order_create.order.order_number,
+      accountId: accountId,
       data: data.data
     })
 
