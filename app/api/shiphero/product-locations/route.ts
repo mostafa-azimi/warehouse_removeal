@@ -60,31 +60,23 @@ async function fetchProductLocations(accessToken: string, customerAccountId: str
       })
     }
 
-    // Using the exact query provided by Manus that works with the ShipHero schema
+    // Using the simplified query to troubleshoot 400 errors
     const query = `
-      query GetProductLocationsByClient($customer_account_id: String!, $first: Int = 100) {
+      query GetProductLocations($customer_account_id: String!) {
         warehouse_products(customer_account_id: $customer_account_id) {
           request_id
           complexity
-          data(first: $first) {
+          data(first: 50) {
             edges {
               node {
                 id
-                account_id
                 on_hand
                 inventory_bin
-                warehouse {
-                  id
-                  account_id
-                }
                 product {
-                  id
-                  name
                   sku
-                  barcode
-                  account_id
+                  name
                 }
-                locations(first: 50) {
+                locations(first: 10) {
                   edges {
                     node {
                       id
@@ -92,25 +84,28 @@ async function fetchProductLocations(accessToken: string, customerAccountId: str
                       quantity
                       pickable
                       sellable
-                      warehouse_id
                     }
                   }
                 }
               }
-            }
-            pageInfo {
-              hasNextPage
-              endCursor
             }
           }
         }
       }
     `
 
-    // Small batch size since locations are expensive
+    // Try both numeric and encoded account ID formats
+    const numericAccountId = customerAccountId
+    const encodedAccountId = btoa(`Account:${customerAccountId}`)
+    
+    console.log('[PRODUCT LOCATIONS API] Testing both account ID formats:', {
+      numeric: numericAccountId,
+      encoded: encodedAccountId
+    })
+
+    // Start with numeric format
     const variables = {
-      customer_account_id: customerAccountId,
-      first: 15  // Small batch to manage credit limits with location data
+      customer_account_id: numericAccountId
     }
 
     const requestBody = { query, variables }
@@ -146,30 +141,58 @@ async function fetchProductLocations(accessToken: string, customerAccountId: str
 
     if (!response.ok) {
       const errorText = await response.text()
-      console.log('[PRODUCT LOCATIONS API] ShipHero error response (raw):', errorText)
+      console.log('[PRODUCT LOCATIONS API] First attempt failed, trying encoded account ID format...')
       
-      // Try to parse the error as JSON for more details
-      let errorDetails
-      try {
-        errorDetails = JSON.parse(errorText)
-        console.log('[PRODUCT LOCATIONS API] ShipHero error response (parsed):', JSON.stringify(errorDetails, null, 2))
-      } catch (e) {
-        console.log('[PRODUCT LOCATIONS API] Could not parse error response as JSON')
-        errorDetails = errorText
+      // If numeric format failed, try encoded format
+      const encodedVariables = {
+        customer_account_id: encodedAccountId
       }
       
-      return NextResponse.json(
-        { 
-          error: `ShipHero API error: ${response.status} ${response.statusText}`, 
-          details: errorDetails,
-          requestInfo: {
-            customerAccountId,
-            accountIdFormat: 'Direct numeric string',
-            queryUsed: 'warehouse_products'
-          }
+      const encodedRequestBody = { query, variables: encodedVariables }
+      
+      console.log('[PRODUCT LOCATIONS API] Retrying with encoded account ID:', encodedRequestBody)
+      
+      await delay(1000) // Brief delay before retry
+      
+      const retryResponse = await fetch('https://public-api.shiphero.com/graphql', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`
         },
-        { status: response.status }
-      )
+        body: JSON.stringify(encodedRequestBody)
+      })
+      
+      console.log('[PRODUCT LOCATIONS API] Retry response status:', retryResponse.status)
+      
+      if (!retryResponse.ok) {
+        // Both formats failed, return the original error
+        let errorDetails
+        try {
+          errorDetails = JSON.parse(errorText)
+          console.log('[PRODUCT LOCATIONS API] Both formats failed. Original error:', JSON.stringify(errorDetails, null, 2))
+        } catch (e) {
+          console.log('[PRODUCT LOCATIONS API] Could not parse error response as JSON')
+          errorDetails = errorText
+        }
+        
+        return NextResponse.json(
+          { 
+            error: `ShipHero API error: Both numeric (${numericAccountId}) and encoded (${encodedAccountId}) formats failed`, 
+            details: errorDetails,
+            requestInfo: {
+              customerAccountId,
+              accountIdFormats: ['numeric', 'encoded'],
+              queryUsed: 'warehouse_products'
+            }
+          },
+          { status: response.status }
+        )
+      }
+      
+      // Encoded format worked, use that response
+      console.log('[PRODUCT LOCATIONS API] Encoded format worked! Using retry response.')
+      response = retryResponse
     }
 
     const data = await response.json()
