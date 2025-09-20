@@ -81,14 +81,19 @@ function SimpleSettings({ onConfigChange }: { onConfigChange?: (config: ShipHero
   }
 
   const generateAccessToken = async () => {
+    console.log('[FRONTEND] Starting access token generation')
+    
     if (!refreshToken.trim()) {
+      console.log('[FRONTEND] ERROR: No refresh token provided')
       alert('Please enter a refresh token first')
       return
     }
 
+    console.log('[FRONTEND] Refresh token length:', refreshToken.trim().length)
     setIsGenerating(true)
     
     try {
+      console.log('[FRONTEND] Making request to /api/shiphero/refresh')
       const response = await fetch('/api/shiphero/refresh', {
         method: 'POST',
         headers: {
@@ -99,12 +104,21 @@ function SimpleSettings({ onConfigChange }: { onConfigChange?: (config: ShipHero
         })
       })
 
+      console.log('[FRONTEND] Response status:', response.status, response.statusText)
+
       if (!response.ok) {
         const error = await response.json()
+        console.error('[FRONTEND] API error response:', error)
         throw new Error(error.error || 'Failed to generate access token')
       }
 
       const data = await response.json()
+      console.log('[FRONTEND] Success! Received token data:', {
+        access_token: data.access_token ? data.access_token.substring(0, 20) + '...' : 'undefined',
+        expires_in: data.expires_in,
+        token_type: data.token_type,
+        scope: data.scope
+      })
       
       // Update the access token field
       setAccessToken(data.access_token)
@@ -116,6 +130,12 @@ function SimpleSettings({ onConfigChange }: { onConfigChange?: (config: ShipHero
         tokenExpiry: new Date(Date.now() + data.expires_in * 1000) // expires_in is in seconds
       }
 
+      console.log('[FRONTEND] Saving config to localStorage:', {
+        refreshToken: config.refreshToken.substring(0, 20) + '...',
+        accessToken: config.accessToken?.substring(0, 20) + '...',
+        tokenExpiry: config.tokenExpiry?.toISOString()
+      })
+
       localStorage.setItem('shiphero-config', JSON.stringify(config))
       setSavedConfig(config)
       onConfigChange?.(config)
@@ -123,17 +143,24 @@ function SimpleSettings({ onConfigChange }: { onConfigChange?: (config: ShipHero
       alert(`Access token generated successfully! Expires in ${Math.round(data.expires_in / (24 * 60 * 60))} days.`)
       
     } catch (error) {
-      console.error('Error generating access token:', error)
+      console.error('[FRONTEND] Error generating access token:', error)
+      console.error('[FRONTEND] Error stack:', error instanceof Error ? error.stack : 'No stack trace')
       alert(`Error: ${error instanceof Error ? error.message : 'Unknown error occurred'}`)
     } finally {
+      console.log('[FRONTEND] Token generation complete, setting loading to false')
       setIsGenerating(false)
     }
   }
 
   const testConnection = async () => {
+    console.log('[FRONTEND] Starting connection test')
     const currentAccessToken = accessToken || savedConfig?.accessToken
     
+    console.log('[FRONTEND] Access token available:', !!currentAccessToken)
+    console.log('[FRONTEND] Access token length:', currentAccessToken?.length || 'undefined')
+    
     if (!currentAccessToken) {
+      console.log('[FRONTEND] ERROR: No access token available')
       alert('Please generate an access token first')
       return
     }
@@ -142,6 +169,7 @@ function SimpleSettings({ onConfigChange }: { onConfigChange?: (config: ShipHero
     setConnectionStatus('idle')
     
     try {
+      console.log('[FRONTEND] Making request to /api/shiphero/warehouses')
       const response = await fetch('/api/shiphero/warehouses', {
         method: 'POST',
         headers: {
@@ -152,21 +180,33 @@ function SimpleSettings({ onConfigChange }: { onConfigChange?: (config: ShipHero
         })
       })
 
+      console.log('[FRONTEND] Warehouses API response status:', response.status, response.statusText)
+
       if (!response.ok) {
         const error = await response.json()
+        console.error('[FRONTEND] Warehouses API error response:', error)
         throw new Error(error.error || 'Failed to test connection')
       }
 
       const data = await response.json()
+      console.log('[FRONTEND] Success! Received warehouse data:', {
+        warehouseCount: data.warehouses?.length || 0,
+        request_id: data.request_id,
+        complexity: data.complexity
+      })
+      console.log('[FRONTEND] Warehouse details:', data.warehouses)
+      
       setWarehouses(data.warehouses)
       setConnectionStatus('success')
       
     } catch (error) {
-      console.error('Error testing connection:', error)
+      console.error('[FRONTEND] Error testing connection:', error)
+      console.error('[FRONTEND] Error stack:', error instanceof Error ? error.stack : 'No stack trace')
       setConnectionStatus('error')
       setWarehouses([])
       alert(`Connection test failed: ${error instanceof Error ? error.message : 'Unknown error occurred'}`)
     } finally {
+      console.log('[FRONTEND] Connection test complete, setting testing to false')
       setIsTesting(false)
     }
   }

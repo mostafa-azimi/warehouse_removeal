@@ -43,7 +43,10 @@ export class ShipHeroAPI {
   }
 
   private async performTokenRefresh(): Promise<string> {
+    console.log('[SHIPHERO API] Starting token refresh')
+    
     try {
+      console.log('[SHIPHERO API] Making token refresh request to ShipHero')
       const response = await fetch('https://public-api.shiphero.com/auth/refresh', {
         method: 'POST',
         headers: {
@@ -54,25 +57,44 @@ export class ShipHeroAPI {
         }),
       });
 
+      console.log('[SHIPHERO API] Token refresh response status:', response.status, response.statusText)
+
       if (!response.ok) {
+        const errorText = await response.text()
+        console.error('[SHIPHERO API] Token refresh failed with response:', errorText)
         throw new Error(`Token refresh failed: ${response.status} ${response.statusText}`);
       }
 
       const data: ShipHeroAuthResponse = await response.json();
+      console.log('[SHIPHERO API] Token refresh successful:', {
+        access_token: data.access_token ? data.access_token.substring(0, 20) + '...' : 'undefined',
+        expires_in: data.expires_in,
+        token_type: data.token_type,
+        scope: data.scope
+      })
       
       this.config.accessToken = data.access_token;
       this.config.tokenExpiry = new Date(Date.now() + data.expires_in * 1000);
       
       // Store in localStorage for persistence
-      localStorage.setItem('shiphero_config', JSON.stringify({
+      const configToStore = {
         refreshToken: this.config.refreshToken,
         accessToken: data.access_token,
         tokenExpiry: this.config.tokenExpiry.toISOString(),
-      }));
+      }
+      console.log('[SHIPHERO API] Storing updated config in localStorage:', {
+        refreshToken: configToStore.refreshToken.substring(0, 20) + '...',
+        accessToken: configToStore.accessToken.substring(0, 20) + '...',
+        tokenExpiry: configToStore.tokenExpiry
+      })
+      
+      localStorage.setItem('shiphero_config', JSON.stringify(configToStore));
 
       this.refreshPromise = null;
       return data.access_token;
     } catch (error) {
+      console.error('[SHIPHERO API] Token refresh error:', error)
+      console.error('[SHIPHERO API] Error stack:', error instanceof Error ? error.stack : 'No stack trace')
       this.refreshPromise = null;
       throw new Error(`Failed to refresh ShipHero token: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
@@ -90,7 +112,18 @@ export class ShipHeroAPI {
   }
 
   private async makeGraphQLRequest(query: string, variables: any = {}): Promise<any> {
+    console.log('[SHIPHERO API] Making GraphQL request')
+    console.log('[SHIPHERO API] Query:', query.substring(0, 200) + '...')
+    console.log('[SHIPHERO API] Variables:', JSON.stringify(variables, null, 2))
+    
     const accessToken = await this.getValidAccessToken();
+    console.log('[SHIPHERO API] Using access token:', accessToken.substring(0, 20) + '...')
+    
+    const requestBody = {
+      query,
+      variables,
+    }
+    console.log('[SHIPHERO API] Request body size:', JSON.stringify(requestBody).length, 'characters')
     
     const response = await fetch('https://public-api.shiphero.com/graphql', {
       method: 'POST',
@@ -98,26 +131,37 @@ export class ShipHeroAPI {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${accessToken}`,
       },
-      body: JSON.stringify({
-        query,
-        variables,
-      }),
+      body: JSON.stringify(requestBody),
     });
 
+    console.log('[SHIPHERO API] GraphQL response status:', response.status, response.statusText)
+
     if (!response.ok) {
+      const errorText = await response.text()
+      console.error('[SHIPHERO API] GraphQL request failed with response:', errorText)
       throw new Error(`GraphQL request failed: ${response.status} ${response.statusText}`);
     }
 
     const data = await response.json();
+    console.log('[SHIPHERO API] GraphQL response structure:', {
+      hasData: !!data.data,
+      hasErrors: !!data.errors,
+      errorCount: data.errors?.length || 0,
+      dataKeys: data.data ? Object.keys(data.data) : []
+    })
     
     if (data.errors && data.errors.length > 0) {
+      console.error('[SHIPHERO API] GraphQL errors:', JSON.stringify(data.errors, null, 2))
       throw new Error(`GraphQL errors: ${data.errors.map((e: ShipHeroError) => e.message).join(', ')}`);
     }
 
+    console.log('[SHIPHERO API] GraphQL request successful')
     return data.data;
   }
 
   async testConnection(): Promise<Warehouse[]> {
+    console.log('[SHIPHERO API] Testing connection by fetching warehouses')
+    
     const query = `
       query {
         warehouses {
@@ -137,14 +181,19 @@ export class ShipHeroAPI {
 
     try {
       const data = await this.makeGraphQLRequest(query);
+      console.log('[SHIPHERO API] Warehouse query successful, received data:', data)
       
-      return data.warehouses.map((warehouse: any) => ({
+      const warehouses = data.warehouses.map((warehouse: any) => ({
         id: warehouse.id,
         name: warehouse.name,
         address: this.formatAddress(warehouse.address),
         decodedId: this.decodeBase64(warehouse.id),
       }));
+      
+      console.log('[SHIPHERO API] Processed', warehouses.length, 'warehouses')
+      return warehouses;
     } catch (error) {
+      console.error('[SHIPHERO API] Failed to fetch warehouses:', error)
       throw new Error(`Failed to fetch warehouses: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -174,6 +223,17 @@ export class ShipHeroAPI {
     totalPrice: number;
     shopName?: string;
   }): Promise<string> {
+    console.log('[SHIPHERO API] Creating sales order:', {
+      orderNumber: orderData.orderNumber,
+      customerEmail: orderData.customerEmail,
+      lineItemsCount: orderData.lineItems.length,
+      subtotal: orderData.subtotal,
+      totalPrice: orderData.totalPrice,
+      shopName: orderData.shopName
+    })
+    console.log('[SHIPHERO API] Line items:', orderData.lineItems)
+    console.log('[SHIPHERO API] Shipping address:', orderData.shippingAddress)
+    
     const mutation = `
       mutation CreateOrder($data: CreateOrderInput!) {
         order_create(data: $data) {
@@ -224,10 +284,16 @@ export class ShipHeroAPI {
       },
     };
 
+    console.log('[SHIPHERO API] Order creation variables:', JSON.stringify(variables, null, 2))
+
     try {
       const data = await this.makeGraphQLRequest(mutation, variables);
-      return data.order_create.order.id;
+      console.log('[SHIPHERO API] Order creation successful:', data)
+      const orderId = data.order_create.order.id
+      console.log('[SHIPHERO API] Created order with ID:', orderId)
+      return orderId;
     } catch (error) {
+      console.error('[SHIPHERO API] Failed to create sales order:', error)
       throw new Error(`Failed to create sales order: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
