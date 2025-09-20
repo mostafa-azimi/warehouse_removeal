@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Customer account ID is required' }, { status: 400 })
     }
 
-    // Updated GraphQL query to properly fetch location details
+    // Corrected GraphQL query with proper nested structure
     const query = `
       query GetProductLocations($customer_account_id: String!) {
         warehouse_products(customer_account_id: $customer_account_id) {
@@ -37,12 +37,12 @@ export async function POST(request: NextRequest) {
                 locations(first: 20) {
                   edges {
                     node {
-                      id
-                      name
                       quantity
-                      pickable
-                      sellable
-                      warehouse_id
+                      location {
+                        name
+                        pickable
+                        sellable
+                      }
                     }
                   }
                 }

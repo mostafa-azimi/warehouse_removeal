@@ -210,15 +210,17 @@ export function DataImport({ onDataImported, inventoryData }: DataImportProps) {
             console.log(`[TRANSFORM] Found ${node.locations.edges.length} location(s)`);
             node.locations.edges.forEach((locationEdge: any, locIndex: number) => {
               console.log(`[TRANSFORM] Location ${locIndex}:`, locationEdge.node);
-              const location = locationEdge.node;
+              const locationNode = locationEdge.node;
+              const location = locationNode.location; // ← This is the key change!
+              
               transformedItems.push({
                 sku: product?.sku || 'N/A',
                 productName: product?.name || 'N/A',
-                binLocation: location?.name || node.inventory_bin || 'N/A',
-                quantity: location?.quantity || node.on_hand || 0,
+                binLocation: location?.name || node.inventory_bin || 'N/A', // ← Now using location.name
+                quantity: locationNode?.quantity || 0, // ← quantity is on the locationNode
                 sellable: location?.sellable ?? true,
                 pickable: location?.pickable ?? true,
-                warehouseId: location?.warehouse_id || 'N/A'
+                warehouseId: 'N/A'
               });
             });
           } else {
