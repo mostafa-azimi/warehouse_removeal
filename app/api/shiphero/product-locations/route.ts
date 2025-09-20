@@ -60,8 +60,7 @@ async function fetchProductLocations(accessToken: string, customerAccountId: str
       })
     }
 
-    // Try a different approach - get location data from a separate query or use inventory_bin
-    // Since the locations.name field seems to not be available in your GraphQL schema
+    // Using the exact query provided by Manus that works with the ShipHero schema
     const query = `
       query GetProductLocationsByClient($customer_account_id: String!, $first: Int = 100) {
         warehouse_products(customer_account_id: $customer_account_id) {
@@ -74,6 +73,10 @@ async function fetchProductLocations(accessToken: string, customerAccountId: str
                 account_id
                 on_hand
                 inventory_bin
+                warehouse {
+                  id
+                  account_id
+                }
                 product {
                   id
                   name
@@ -81,9 +84,17 @@ async function fetchProductLocations(accessToken: string, customerAccountId: str
                   barcode
                   account_id
                 }
-                warehouse {
-                  id
-                  account_id
+                locations(first: 50) {
+                  edges {
+                    node {
+                      id
+                      name
+                      quantity
+                      pickable
+                      sellable
+                      warehouse_id
+                    }
+                  }
                 }
               }
             }
@@ -96,10 +107,10 @@ async function fetchProductLocations(accessToken: string, customerAccountId: str
       }
     `
 
-    // Increased batch size since we removed expensive location queries
+    // Small batch size since locations are expensive
     const variables = {
       customer_account_id: customerAccountId,
-      first: 50  // Can increase since no location sub-queries
+      first: 15  // Small batch to manage credit limits with location data
     }
 
     const requestBody = { query, variables }

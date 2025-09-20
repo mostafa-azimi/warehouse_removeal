@@ -202,13 +202,34 @@ export function DataImport({ onDataImported, inventoryData }: DataImportProps) {
           }
         }
         
-        // Use inventory_bin which should contain the actual location names like "PS01-01"
-        if (product.inventory_bin && product.on_hand > 0) {
+        // Process individual bin locations as provided by Manus
+        if (product.locations?.edges?.length > 0) {
+          product.locations.edges.forEach((locationEdge: any) => {
+            const location = locationEdge.node
+            
+            // Only add locations with quantity > 0
+            if (location.quantity > 0) {
+              transformedData.push({
+                item: productInfo?.name || 'Unknown Product',
+                sku: productInfo?.sku || '',
+                warehouse: warehouseName,
+                location: location.name, // This gives us "PS01-01", "A02-02-A-03", etc.
+                type: 'product',
+                units: location.quantity, // Specific quantity in this bin
+                activeItem: (location.pickable && location.sellable) ? 'yes' : 'no',
+                pickable: location.pickable ? 'yes' : 'no',
+                sellable: location.sellable ? 'yes' : 'no',
+                creationDate: new Date().toISOString().split('T')[0]
+              })
+            }
+          })
+        } else if (product.inventory_bin && product.on_hand > 0) {
+          // Fallback: if no specific locations but has inventory_bin
           transformedData.push({
             item: productInfo?.name || 'Unknown Product',
             sku: productInfo?.sku || '',
             warehouse: warehouseName,
-            location: product.inventory_bin, // This should contain "PS01-01", "A02-02-A-03", etc.
+            location: product.inventory_bin,
             type: 'product',
             units: product.on_hand,
             activeItem: 'yes',
@@ -421,7 +442,7 @@ export function DataImport({ onDataImported, inventoryData }: DataImportProps) {
                 className="h-12 text-base border-2 border-purple-300 focus:border-purple-500 bg-white"
               />
               <p className="text-sm text-purple-600 mt-1">
-                Enter the numeric account ID. Fetches up to 15 products with individual bin locations to stay within API credit limits.
+                Enter the numeric account ID. Fetches individual bin locations (PS01-01, A02-02-A-03, etc.) with pickable/sellable status.
               </p>
             </div>
             <div className="pt-2">
@@ -483,8 +504,10 @@ export function DataImport({ onDataImported, inventoryData }: DataImportProps) {
                 <TableRow>
                   <TableHead>Item</TableHead>
                   <TableHead>SKU</TableHead>
-                  <TableHead>Location</TableHead>
-                  <TableHead>Units</TableHead>
+                  <TableHead>Bin Location</TableHead>
+                  <TableHead>Quantity</TableHead>
+                  <TableHead>Pickable</TableHead>
+                  <TableHead>Sellable</TableHead>
                   <TableHead>Status</TableHead>
                 </TableRow>
               </TableHeader>
@@ -492,9 +515,27 @@ export function DataImport({ onDataImported, inventoryData }: DataImportProps) {
                 {sortedDisplayData.slice(0, 10).map((item, index) => (
                   <TableRow key={index}>
                     <TableCell className="font-medium">{item.item}</TableCell>
-                    <TableCell>{item.sku}</TableCell>
-                    <TableCell>{item.location}</TableCell>
-                    <TableCell>{item.units}</TableCell>
+                    <TableCell className="font-mono">{item.sku}</TableCell>
+                    <TableCell className="font-mono font-bold text-blue-600">{item.location}</TableCell>
+                    <TableCell className="text-center font-semibold">{item.units}</TableCell>
+                    <TableCell>
+                      <span
+                        className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                          item.pickable === "yes" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
+                        }`}
+                      >
+                        {item.pickable === "yes" ? "✓ Yes" : "✗ No"}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <span
+                        className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                          item.sellable === "yes" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
+                        }`}
+                      >
+                        {item.sellable === "yes" ? "✓ Yes" : "✗ No"}
+                      </span>
+                    </TableCell>
                     <TableCell>
                       <span
                         className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
