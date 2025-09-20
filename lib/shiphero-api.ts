@@ -289,33 +289,54 @@ export class ShipHeroAPI {
     console.log('[SHIPHERO API] Order creation variables:', JSON.stringify(variables, null, 2))
 
     try {
+      console.log('🚀 [BROWSER DEBUG] Starting order creation...')
+      console.log('🚀 [BROWSER DEBUG] Order data:', JSON.stringify(orderData, null, 2))
+      
       const accessToken = await this.getValidAccessToken();
+      console.log('🚀 [BROWSER DEBUG] Got access token, length:', accessToken.length)
+      
+      const requestPayload = {
+        accessToken,
+        orderData
+      }
+      console.log('🚀 [BROWSER DEBUG] Sending request payload:', JSON.stringify(requestPayload, null, 2))
       
       const response = await fetch('/api/shiphero/create-order', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          accessToken,
-          orderData
-        }),
+        body: JSON.stringify(requestPayload),
       });
+
+      console.log('🚀 [BROWSER DEBUG] Response status:', response.status)
+      console.log('🚀 [BROWSER DEBUG] Response ok:', response.ok)
 
       if (!response.ok) {
         const errorData = await response.json()
-        console.error('[SHIPHERO API] Create order API request failed:', errorData)
+        console.error('🚨 [BROWSER DEBUG] API request failed:', errorData)
+        console.error('🚨 [BROWSER DEBUG] Full error response:', JSON.stringify(errorData, null, 2))
         throw new Error(errorData.error || `HTTP ${response.status}`)
       }
 
       const data = await response.json()
-      console.log('[SHIPHERO API] Order creation successful:', data)
+      console.log('✅ [BROWSER DEBUG] Raw API response:', JSON.stringify(data, null, 2))
       
-      if (!data.success || !data.orderId) {
-        throw new Error('Invalid response from create order API')
+      if (!data.success) {
+        console.error('🚨 [BROWSER DEBUG] Response missing success flag:', data)
+        throw new Error('Invalid response from create order API - no success flag')
       }
       
-      console.log('[SHIPHERO API] Created order with ID:', data.orderId)
+      if (!data.orderId) {
+        console.error('🚨 [BROWSER DEBUG] Response missing orderId:', data)
+        throw new Error('Invalid response from create order API - no orderId')
+      }
+      
+      console.log('🎉 [BROWSER DEBUG] Order created successfully!')
+      console.log('🎉 [BROWSER DEBUG] Order ID:', data.orderId)
+      console.log('🎉 [BROWSER DEBUG] Order Number:', data.orderNumber)
+      console.log('🎉 [BROWSER DEBUG] Account ID:', data.accountId)
+      
       return data.orderId;
     } catch (error) {
       console.error('[SHIPHERO API] Failed to create sales order:', error)
