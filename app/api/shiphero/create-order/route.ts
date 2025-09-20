@@ -81,6 +81,10 @@ export async function POST(request: NextRequest) {
       }
     `;
 
+    console.log('=== SHIPHERO CREATE ORDER DEBUG ===')
+    console.log('Customer Account ID:', orderData.customerAccountId)
+    console.log('Order Number:', orderData.orderNumber)
+    console.log('Line Items Count:', orderData.lineItems?.length)
     console.log('GraphQL Mutation:', mutation)
 
     const response = await fetch('https://public-api.shiphero.com/graphql', {
@@ -91,28 +95,68 @@ export async function POST(request: NextRequest) {
       },
       body: JSON.stringify({
         query: mutation
-      } )
+      })
     })
 
     const responseText = await response.text()
-    console.log('ShipHero Response Status:', response.status)
-    console.log('ShipHero Response Body:', responseText)
+    console.log('=== SHIPHERO RESPONSE DEBUG ===')
+    console.log('Response Status:', response.status)
+    console.log('Response Headers:', Object.fromEntries(response.headers.entries()))
+    console.log('Response Body (raw):', responseText)
 
     if (!response.ok) {
+      console.error('HTTP Error:', response.status, response.statusText)
       throw new Error(`ShipHero API error: ${response.status} ${response.statusText}`)
     }
 
-    const data = JSON.parse(responseText)
+    let data
+    try {
+      data = JSON.parse(responseText)
+      console.log('Parsed Response Data:', JSON.stringify(data, null, 2))
+    } catch (parseError) {
+      console.error('JSON Parse Error:', parseError)
+      console.error('Raw response that failed to parse:', responseText)
+      return NextResponse.json({ 
+        error: 'Invalid JSON response from ShipHero',
+        details: responseText
+      }, { status: 500 })
+    }
 
     if (data.errors) {
-      console.error('GraphQL Errors:', data.errors)
+      console.error('=== GRAPHQL ERRORS ===')
+      console.error('GraphQL Errors:', JSON.stringify(data.errors, null, 2))
       return NextResponse.json({ 
         error: 'ShipHero GraphQL error',
         details: data.errors
       }, { status: 400 })
     }
 
-    return NextResponse.json(data)
+    // Check if order was created successfully
+    if (data.data?.order_create?.order) {
+      console.log('=== ORDER CREATED SUCCESSFULLY ===')
+      console.log('Order ID:', data.data.order_create.order.id)
+      console.log('Order Number:', data.data.order_create.order.order_number)
+      console.log('Account ID:', data.data.order_create.order.account_id)
+      
+      // Return the order ID in the expected format
+      const orderId = data.data.order_create.order.id
+      console.log('Returning order ID:', orderId)
+      
+      return NextResponse.json({ 
+        success: true,
+        orderId: orderId,
+        orderNumber: data.data.order_create.order.order_number,
+        accountId: data.data.order_create.order.account_id,
+        fullResponse: data
+      })
+    } else {
+      console.error('=== ORDER CREATION FAILED ===')
+      console.error('No order found in response:', JSON.stringify(data, null, 2))
+      return NextResponse.json({ 
+        error: 'Order creation failed - no order in response',
+        details: data
+      }, { status: 400 })
+    }
 
   } catch (error) {
     console.error('Create order API error:', error)
