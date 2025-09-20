@@ -21,6 +21,10 @@ export function DataImport({ onDataImported, inventoryData }: DataImportProps) {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
   const [isGeneratingQR, setIsGeneratingQR] = useState(false)
+  
+  // 3PL API Import state
+  const [accountId, setAccountId] = useState("")
+  const [isApiLoading, setIsApiLoading] = useState(false)
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -123,6 +127,113 @@ export function DataImport({ onDataImported, inventoryData }: DataImportProps) {
       console.error("Data loading error:", err)
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const handleApiImport = async () => {
+    if (!accountId.trim()) {
+      setError("Please enter a valid account ID")
+      return
+    }
+
+    setIsApiLoading(true)
+    setError(null)
+    setSuccess(false)
+
+    try {
+      // Encode the numeric account ID to base64 format for ShipHero
+      const encodedAccountId = btoa(`Account:${accountId.trim()}`)
+      console.log(`[DATA-IMPORT] Converting account ID ${accountId} to encoded: ${encodedAccountId}`)
+
+      // Get saved ShipHero config
+      const savedConfigStr = localStorage.getItem('shiphero-config')
+      if (!savedConfigStr) {
+        setError("No ShipHero configuration found. Please configure your API tokens first.")
+        return
+      }
+
+      const savedConfig = JSON.parse(savedConfigStr)
+      const accessToken = savedConfig.accessToken
+
+      if (!accessToken) {
+        setError("No access token found. Please generate an access token first.")
+        return
+      }
+
+      console.log('[DATA-IMPORT] Making API request for product locations')
+      const response = await fetch('/api/shiphero/product-locations', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          accessToken,
+          customerAccountId: encodedAccountId
+        })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || `HTTP ${response.status}`)
+      }
+
+      const apiData = await response.json()
+      console.log('[DATA-IMPORT] API response received:', apiData)
+
+      // Transform ShipHero API response to InventoryItem format
+      const productNodes = apiData?.data?.warehouse_products?.data?.edges || []
+      const transformedData: InventoryItem[] = []
+
+      productNodes.forEach((edge: any) => {
+        const product = edge.node
+        const productInfo = product.product
+        
+        // If the product has specific locations, create an entry for each location
+        if (product.locations?.edges?.length > 0) {
+          product.locations.edges.forEach((locationEdge: any) => {
+            const location = locationEdge.node
+            transformedData.push({
+              item: productInfo?.name || 'Unknown Product',
+              sku: productInfo?.sku || '',
+              warehouse: product.warehouse?.profile || 'Unknown Warehouse',
+              location: location.name || product.inventory_bin || 'Unknown Location',
+              type: 'product', // Default type
+              units: location.quantity || product.on_hand || 0,
+              activeItem: (location.pickable && location.sellable) ? 'yes' : 'no',
+              pickable: location.pickable ? 'yes' : 'no',
+              sellable: location.sellable ? 'yes' : 'no',
+              creationDate: new Date().toISOString().split('T')[0] // Today's date
+            })
+          })
+        } else {
+          // If no specific locations, create one entry with primary bin
+          transformedData.push({
+            item: productInfo?.name || 'Unknown Product',
+            sku: productInfo?.sku || '',
+            warehouse: product.warehouse?.profile || 'Unknown Warehouse',
+            location: product.inventory_bin || 'Dynamic',
+            type: 'product',
+            units: product.on_hand || 0,
+            activeItem: product.on_hand > 0 ? 'yes' : 'no',
+            pickable: 'yes', // Default for products without specific location data
+            sellable: 'yes',
+            creationDate: new Date().toISOString().split('T')[0]
+          })
+        }
+      })
+
+      // Sort by location like the CSV import does
+      transformedData.sort((a, b) => a.location.localeCompare(b.location, undefined, { numeric: true, sensitivity: "base" }))
+
+      console.log(`[DATA-IMPORT] Transformed ${transformedData.length} items from API data`)
+      onDataImported(transformedData)
+      setSuccess(true)
+
+    } catch (err) {
+      console.error('[DATA-IMPORT] API import error:', err)
+      setError(`Failed to import from API: ${err instanceof Error ? err.message : 'Unknown error occurred'}`)
+    } finally {
+      setIsApiLoading(false)
     }
   }
 
@@ -279,6 +390,63 @@ export function DataImport({ onDataImported, inventoryData }: DataImportProps) {
           {isLoading && (
             <div className="bg-white rounded-lg p-4 border border-cyan-200">
               <p className="text-base text-cyan-600 font-medium">Processing your file...</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* 3PL API Import Section */}
+      <div className="border-4 border-dashed border-purple-400 rounded-xl p-8 bg-gradient-to-br from-purple-50 to-indigo-50 shadow-lg">
+        <div className="text-center space-y-6">
+          <div className="bg-purple-100 rounded-full w-20 h-20 mx-auto flex items-center justify-center">
+            <svg className="h-10 w-10 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v14a2 2 0 002 2z" />
+            </svg>
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold text-purple-900 mb-2">Import from ShipHero API (3PL Mode)</h2>
+            <p className="text-base text-purple-700 max-w-md mx-auto">
+              Enter a customer account ID to fetch their product locations directly from ShipHero
+            </p>
+          </div>
+          <div className="space-y-4 max-w-md mx-auto">
+            <div>
+              <Label htmlFor="account-id" className="block text-sm font-medium text-purple-700 mb-2">
+                Customer Account ID
+              </Label>
+              <Input
+                id="account-id"
+                type="number"
+                value={accountId}
+                onChange={(e) => setAccountId(e.target.value)}
+                placeholder="e.g., 85879"
+                disabled={isApiLoading}
+                className="h-12 text-base border-2 border-purple-300 focus:border-purple-500 bg-white"
+              />
+              <p className="text-sm text-purple-600 mt-1">
+                Enter the numeric account ID (will be automatically encoded for ShipHero)
+              </p>
+            </div>
+            <div className="pt-2">
+              <Button
+                onClick={handleApiImport}
+                disabled={isApiLoading || !accountId.trim()}
+                size="lg"
+                className="bg-purple-600 hover:bg-purple-700 text-white px-8 py-3 text-lg font-semibold"
+              >
+                <svg className="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
+                </svg>
+                {isApiLoading ? 'Fetching Product Locations...' : 'Import from ShipHero API'}
+              </Button>
+            </div>
+          </div>
+          {isApiLoading && (
+            <div className="bg-white rounded-lg p-4 border border-purple-200">
+              <p className="text-base text-purple-600 font-medium">Querying ShipHero API for account {accountId}...</p>
+              <div className="mt-2 text-sm text-purple-500">
+                This may take a few moments depending on inventory size
+              </div>
             </div>
           )}
         </div>
