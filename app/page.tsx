@@ -189,14 +189,32 @@ function SimpleSettings({ onConfigChange }: { onConfigChange?: (config: ShipHero
       }
 
       const data = await response.json()
-      console.log('[FRONTEND] Success! Received warehouse data:', {
-        warehouseCount: data.warehouses?.length || 0,
-        request_id: data.request_id,
-        complexity: data.complexity
-      })
-      console.log('[FRONTEND] Warehouse details:', data.warehouses)
+      console.log('[FRONTEND] Success! Received warehouse data:', data)
       
-      setWarehouses(data.warehouses)
+      // Extract warehouses from the GraphQL response structure
+      const warehouses = data.account?.data?.warehouses || []
+      console.log('[FRONTEND] Extracted warehouses:', warehouses)
+      console.log('[FRONTEND] Warehouse count:', warehouses.length)
+      
+      // Transform the warehouse data to match the expected format
+      const transformedWarehouses = warehouses.map((warehouse: any) => ({
+        id: warehouse.id,
+        identifier: warehouse.identifier,
+        name: warehouse.identifier, // Using identifier as name since name field might not be available
+        address: {
+          name: warehouse.address?.name || '',
+          address1: warehouse.address?.address1 || '',
+          address2: warehouse.address?.address2 || '',
+          city: warehouse.address?.city || '',
+          state: warehouse.address?.state || '',
+          zip: warehouse.address?.zip || '',
+          country: warehouse.address?.country || ''
+        },
+        is_active: true, // Assume active since it's returned from API
+        decodedId: warehouse.legacy_id || warehouse.id
+      }))
+      
+      setWarehouses(transformedWarehouses)
       setConnectionStatus('success')
       
     } catch (error) {
