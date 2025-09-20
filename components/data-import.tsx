@@ -180,65 +180,73 @@ export function DataImport({ onDataImported, inventoryData }: DataImportProps) {
       const apiData = await response.json()
       console.log('[DATA-IMPORT] API response received:', apiData)
 
-      // Transform ShipHero API response to InventoryItem format
-      const productNodes = apiData?.data?.warehouse_products?.data?.edges || []
-      const transformedData: InventoryItem[] = []
-
-      productNodes.forEach((edge: any) => {
-        const product = edge.node
-        const productInfo = product.product
+      // Transform ShipHero API response using the exact function as instructed
+      const transformApiData = (apiResponse: any) => {
+        console.log('[TRANSFORM] Raw API response:', apiResponse);
         
-        // Decode warehouse ID for better display
-        let warehouseName = 'Unknown Warehouse'
-        if (product.warehouse?.id) {
-          try {
-            // Decode base64 warehouse ID (e.g., "V2FyZWhvdXNlOjEyODc4OA==" -> "Warehouse:128788")
-            const decodedWarehouse = atob(product.warehouse.id)
-            const warehouseNumber = decodedWarehouse.split(':')[1] || 'Unknown'
-            warehouseName = `Warehouse-${warehouseNumber}`
-          } catch (e) {
-            console.warn('Could not decode warehouse ID:', product.warehouse.id)
-            warehouseName = `Warehouse-${product.warehouse.id.substring(0, 8)}...`
+        if (!apiResponse?.data?.warehouse_products?.data?.edges) {
+          console.log('[TRANSFORM] No edges found in response');
+          return [];
+        }
+        
+        const edges = apiResponse.data.warehouse_products.data.edges;
+        console.log('[TRANSFORM] Processing', edges.length, 'edges');
+        
+        const transformedItems: any[] = [];
+        
+        edges.forEach((edge: any, index: number) => {
+          console.log(`[TRANSFORM] Processing edge ${index}:`, edge.node);
+          
+          const node = edge.node;
+          const product = node.product;
+          
+          // Handle locations if they exist
+          if (node.locations?.edges?.length > 0) {
+            node.locations.edges.forEach((locationEdge: any) => {
+              const location = locationEdge.node;
+              transformedItems.push({
+                sku: product?.sku || 'N/A',
+                productName: product?.name || 'N/A',
+                binLocation: location?.name || node.inventory_bin || 'N/A',
+                quantity: location?.quantity || node.on_hand || 0,
+                sellable: location?.sellable ?? true,
+                pickable: location?.pickable ?? true,
+                warehouseId: location?.warehouse_id || 'N/A'
+              });
+            });
+          } else {
+            // No specific locations, use warehouse product data
+            transformedItems.push({
+              sku: product?.sku || 'N/A',
+              productName: product?.name || 'N/A',
+              binLocation: node.inventory_bin || 'N/A',
+              quantity: node.on_hand || 0,
+              sellable: true, // Default assumption
+              pickable: true, // Default assumption
+              warehouseId: 'N/A'
+            });
           }
-        }
+        });
         
-        // Process individual bin locations as provided by Manus
-        if (product.locations?.edges?.length > 0) {
-          product.locations.edges.forEach((locationEdge: any) => {
-            const location = locationEdge.node
-            
-            // Only add locations with quantity > 0
-            if (location.quantity > 0) {
-              transformedData.push({
-                item: productInfo?.name || 'Unknown Product',
-                sku: productInfo?.sku || '',
-                warehouse: warehouseName,
-                location: location.name, // This gives us "PS01-01", "A02-02-A-03", etc.
-                type: 'product',
-                units: location.quantity, // Specific quantity in this bin
-                activeItem: (location.pickable && location.sellable) ? 'yes' : 'no',
-                pickable: location.pickable ? 'yes' : 'no',
-                sellable: location.sellable ? 'yes' : 'no',
-                creationDate: new Date().toISOString().split('T')[0]
-              })
-            }
-          })
-        } else if (product.inventory_bin && product.on_hand > 0) {
-          // Fallback: if no specific locations but has inventory_bin
-          transformedData.push({
-            item: productInfo?.name || 'Unknown Product',
-            sku: productInfo?.sku || '',
-            warehouse: warehouseName,
-            location: product.inventory_bin,
-            type: 'product',
-            units: product.on_hand,
-            activeItem: 'yes',
-            pickable: 'yes',
-            sellable: 'yes',
-            creationDate: new Date().toISOString().split('T')[0]
-          })
-        }
-      })
+        console.log('[TRANSFORM] Final transformed items:', transformedItems);
+        return transformedItems;
+      };
+
+      const rawTransformedData = transformApiData(apiData)
+      
+      // Convert to InventoryItem format for the existing UI
+      const transformedData: InventoryItem[] = rawTransformedData.map((item: any) => ({
+        item: item.productName,
+        sku: item.sku,
+        warehouse: 'Warehouse', // Default since we're focusing on locations
+        location: item.binLocation,
+        type: 'product',
+        units: item.quantity,
+        activeItem: (item.pickable && item.sellable) ? 'yes' : 'no',
+        pickable: item.pickable ? 'yes' : 'no',
+        sellable: item.sellable ? 'yes' : 'no',
+        creationDate: new Date().toISOString().split('T')[0]
+      }))
 
       // Sort by location like the CSV import does
       transformedData.sort((a, b) => a.location.localeCompare(b.location, undefined, { numeric: true, sensitivity: "base" }))
