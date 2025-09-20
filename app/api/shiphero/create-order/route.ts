@@ -18,17 +18,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Order data is required' }, { status: 400 })
     }
 
-    // Helper function to escape GraphQL strings
-    const escapeGraphQLString = (str: string) => {
-      if (!str) return '';
-      return str.replace(/"/g, '\\"').replace(/\n/g, '\\n').replace(/\r/g, '\\r');
-    };
-
+    // Simple string interpolation with proper escaping
+    const escapeString = (str: string) => str?.replace(/"/g, '\\"') || '';
+    
     const mutation = `
       mutation {
         order_create(
           data: {
-            order_number: "${escapeGraphQLString(orderData.orderNumber)}"
+            order_number: "${escapeString(orderData.orderNumber)}"
             shop_name: "Warehouse Removal"
             fulfillment_status: "pending"
             order_date: "${new Date().toISOString().split('T')[0]}"
@@ -37,40 +34,40 @@ export async function POST(request: NextRequest) {
             total_discounts: "0.00"
             total_price: "0.00"
             account_id: "90985"
-            email: "${escapeGraphQLString(orderData.customerEmail)}"
+            email: "${escapeString(orderData.customerEmail)}"
             shipping_lines: {
               title: "Standard Shipping"
               price: "0.00"
             }
             shipping_address: {
-              first_name: "${escapeGraphQLString(orderData.shippingAddress.firstName)}"
-              last_name: "${escapeGraphQLString(orderData.shippingAddress.lastName)}"
-              address1: "${escapeGraphQLString(orderData.shippingAddress.address1)}"
-              city: "${escapeGraphQLString(orderData.shippingAddress.city)}"
-              state: "${escapeGraphQLString(orderData.shippingAddress.state)}"
-              zip: "${escapeGraphQLString(orderData.shippingAddress.zip)}"
+              first_name: "${escapeString(orderData.shippingAddress.firstName)}"
+              last_name: "${escapeString(orderData.shippingAddress.lastName)}"
+              address1: "${escapeString(orderData.shippingAddress.address1)}"
+              city: "${escapeString(orderData.shippingAddress.city)}"
+              state: "${escapeString(orderData.shippingAddress.state)}"
+              zip: "${escapeString(orderData.shippingAddress.zip)}"
               country: "US"
               country_code: "US"
-              email: "${escapeGraphQLString(orderData.customerEmail)}"
+              email: "${escapeString(orderData.customerEmail)}"
             }
             billing_address: {
-              first_name: "${escapeGraphQLString(orderData.shippingAddress.firstName)}"
-              last_name: "${escapeGraphQLString(orderData.shippingAddress.lastName)}"
-              address1: "${escapeGraphQLString(orderData.shippingAddress.address1)}"
-              city: "${escapeGraphQLString(orderData.shippingAddress.city)}"
-              state: "${escapeGraphQLString(orderData.shippingAddress.state)}"
-              zip: "${escapeGraphQLString(orderData.shippingAddress.zip)}"
+              first_name: "${escapeString(orderData.shippingAddress.firstName)}"
+              last_name: "${escapeString(orderData.shippingAddress.lastName)}"
+              address1: "${escapeString(orderData.shippingAddress.address1)}"
+              city: "${escapeString(orderData.shippingAddress.city)}"
+              state: "${escapeString(orderData.shippingAddress.state)}"
+              zip: "${escapeString(orderData.shippingAddress.zip)}"
               country: "US"
               country_code: "US"
-              email: "${escapeGraphQLString(orderData.customerEmail)}"
+              email: "${escapeString(orderData.customerEmail)}"
             }
             line_items: [
               ${orderData.lineItems.map((item: any, index: number) => `{
-                sku: "${escapeGraphQLString(item.sku)}"
+                sku: "${escapeString(item.sku)}"
                 partner_line_item_id: "${Date.now()}-${index}"
                 quantity: ${item.quantity}
                 price: "1.00"
-                product_name: "${escapeGraphQLString(item.productName)}"
+                product_name: "${escapeString(item.productName)}"
                 fulfillment_status: "pending"
               }`).join(',')}
             ]
@@ -97,7 +94,7 @@ export async function POST(request: NextRequest) {
       },
       body: JSON.stringify({
         query: mutation
-      } )
+      })
     })
 
     const responseText = await response.text()
