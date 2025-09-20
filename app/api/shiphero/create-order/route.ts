@@ -18,11 +18,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Order data is required' }, { status: 400 })
     }
 
+    // Helper function to escape GraphQL strings
+    const escapeGraphQLString = (str: string) => {
+      if (!str) return '';
+      return str.replace(/"/g, '\\"').replace(/\n/g, '\\n').replace(/\r/g, '\\r');
+    };
+
     const mutation = `
       mutation {
         order_create(
           data: {
-            order_number: "${orderData.orderNumber}"
+            order_number: "${escapeGraphQLString(orderData.orderNumber)}"
             shop_name: "Warehouse Removal"
             fulfillment_status: "pending"
             order_date: "${new Date().toISOString().split('T')[0]}"
@@ -31,39 +37,40 @@ export async function POST(request: NextRequest) {
             total_discounts: "0.00"
             total_price: "0.00"
             account_id: "90985"
-            email: "${orderData.customerEmail}"
+            email: "${escapeGraphQLString(orderData.customerEmail)}"
             shipping_lines: {
               title: "Standard Shipping"
               price: "0.00"
             }
             shipping_address: {
-              first_name: "${orderData.shippingAddress.firstName}"
-              last_name: "${orderData.shippingAddress.lastName}"
-              address1: "${orderData.shippingAddress.address1}"
-              city: "${orderData.shippingAddress.city}"
-              state: "${orderData.shippingAddress.state}"
-              zip: "${orderData.shippingAddress.zip}"
+              first_name: "${escapeGraphQLString(orderData.shippingAddress.firstName)}"
+              last_name: "${escapeGraphQLString(orderData.shippingAddress.lastName)}"
+              address1: "${escapeGraphQLString(orderData.shippingAddress.address1)}"
+              city: "${escapeGraphQLString(orderData.shippingAddress.city)}"
+              state: "${escapeGraphQLString(orderData.shippingAddress.state)}"
+              zip: "${escapeGraphQLString(orderData.shippingAddress.zip)}"
               country: "US"
               country_code: "US"
-              email: "${orderData.customerEmail}"
+              email: "${escapeGraphQLString(orderData.customerEmail)}"
             }
             billing_address: {
-              first_name: "${orderData.shippingAddress.firstName}"
-              last_name: "${orderData.shippingAddress.lastName}"
-              address1: "${orderData.shippingAddress.address1}"
-              city: "${orderData.shippingAddress.city}"
-              state: "${orderData.shippingAddress.state}"
-              zip: "${orderData.shippingAddress.zip}"
+              first_name: "${escapeGraphQLString(orderData.shippingAddress.firstName)}"
+              last_name: "${escapeGraphQLString(orderData.shippingAddress.lastName)}"
+              address1: "${escapeGraphQLString(orderData.shippingAddress.address1)}"
+              city: "${escapeGraphQLString(orderData.shippingAddress.city)}"
+              state: "${escapeGraphQLString(orderData.shippingAddress.state)}"
+              zip: "${escapeGraphQLString(orderData.shippingAddress.zip)}"
               country: "US"
               country_code: "US"
-              email: "${orderData.customerEmail}"
+              email: "${escapeGraphQLString(orderData.customerEmail)}"
             }
             line_items: [
               ${orderData.lineItems.map((item: any, index: number) => `{
-                sku: "${item.sku}"
+                sku: "${escapeGraphQLString(item.sku)}"
+                partner_line_item_id: "${Date.now()}-${index}"
                 quantity: ${item.quantity}
                 price: "1.00"
-                product_name: "${item.productName}"
+                product_name: "${escapeGraphQLString(item.productName)}"
                 fulfillment_status: "pending"
               }`).join(',')}
             ]
