@@ -60,7 +60,8 @@ async function fetchProductLocations(accessToken: string, customerAccountId: str
       })
     }
 
-    // Use the product locations query structure from the documentation
+    // Optimized query - remove expensive nested location queries initially
+    // We'll get basic product info first, then can query specific locations if needed
     const query = `
       query GetProductLocationsByClient($customer_account_id: String!, $first: Int = 100) {
         warehouse_products(customer_account_id: $customer_account_id) {
@@ -73,25 +74,14 @@ async function fetchProductLocations(accessToken: string, customerAccountId: str
                 account_id
                 on_hand
                 inventory_bin
-                warehouse {
-                  id
-                  account_id
-                }
                 product {
                   id
                   name
                   sku
                   barcode
-                  account_id
                 }
-                locations(first: 50) {
-                  edges {
-                    node {
-                      id
-                      quantity
-                      warehouse_id
-                    }
-                  }
+                warehouse {
+                  id
                 }
               }
             }
@@ -104,11 +94,10 @@ async function fetchProductLocations(accessToken: string, customerAccountId: str
       }
     `
 
-    // Start with a much smaller batch to stay within credit limits
-    // The error shows 5101 credits needed for 100 items, so let's try 10-20 items first
+    // Start with moderate batch size - without location queries this should be much cheaper
     const variables = {
       customer_account_id: customerAccountId,
-      first: 10  // Much smaller batch size to stay within 2002 credit limit
+      first: 50  // Increased since we removed expensive location queries
     }
 
     const requestBody = { query, variables }
@@ -123,6 +112,13 @@ async function fetchProductLocations(accessToken: string, customerAccountId: str
     
     console.log('[PRODUCT LOCATIONS API] Full GraphQL request:', JSON.stringify(requestBody, null, 2))
 
+    // Add delay to respect API rate limits and credit regeneration
+    // ShipHero regenerates 30 credits per second according to the logs
+    const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+    
+    console.log('[PRODUCT LOCATIONS API] Adding 2-second delay to respect rate limits...')
+    await delay(2000) // 2 second delay to allow credit regeneration
+    
     const response = await fetch('https://public-api.shiphero.com/graphql', {
       method: 'POST',
       headers: {

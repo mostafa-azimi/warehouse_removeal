@@ -188,38 +188,20 @@ export function DataImport({ onDataImported, inventoryData }: DataImportProps) {
         const product = edge.node
         const productInfo = product.product
         
-        // If the product has specific locations, create an entry for each location
-        if (product.locations?.edges?.length > 0) {
-          product.locations.edges.forEach((locationEdge: any) => {
-            const location = locationEdge.node
-            transformedData.push({
-              item: productInfo?.name || 'Unknown Product',
-              sku: productInfo?.sku || '',
-              warehouse: product.warehouse?.profile || 'Unknown Warehouse',
-              location: `Location-${location.id}` || product.inventory_bin || 'Unknown Location',
-              type: 'product', // Default type
-              units: location.quantity || product.on_hand || 0,
-              activeItem: location.quantity > 0 ? 'yes' : 'no', // Use quantity as indicator
-              pickable: 'yes', // Default since it's in a location
-              sellable: 'yes', // Default since it's in a location
-              creationDate: new Date().toISOString().split('T')[0] // Today's date
-            })
-          })
-        } else {
-          // If no specific locations, create one entry with primary bin
-          transformedData.push({
-            item: productInfo?.name || 'Unknown Product',
-            sku: productInfo?.sku || '',
-            warehouse: product.warehouse?.profile || 'Unknown Warehouse',
-            location: product.inventory_bin || 'Dynamic',
-            type: 'product',
-            units: product.on_hand || 0,
-            activeItem: product.on_hand > 0 ? 'yes' : 'no',
-            pickable: 'yes', // Default for products without specific location data
-            sellable: 'yes',
-            creationDate: new Date().toISOString().split('T')[0]
-          })
-        }
+        // Simplified transformation - use primary bin location
+        // This is much more efficient and avoids expensive location queries
+        transformedData.push({
+          item: productInfo?.name || 'Unknown Product',
+          sku: productInfo?.sku || '',
+          warehouse: `Warehouse-${product.warehouse?.id}` || 'Unknown Warehouse',
+          location: product.inventory_bin || 'Dynamic Location',
+          type: 'product',
+          units: product.on_hand || 0,
+          activeItem: product.on_hand > 0 ? 'yes' : 'no',
+          pickable: 'yes', // Default for products
+          sellable: 'yes', // Default for products
+          creationDate: new Date().toISOString().split('T')[0]
+        })
       })
 
       // Sort by location like the CSV import does
@@ -424,7 +406,7 @@ export function DataImport({ onDataImported, inventoryData }: DataImportProps) {
                 className="h-12 text-base border-2 border-purple-300 focus:border-purple-500 bg-white"
               />
               <p className="text-sm text-purple-600 mt-1">
-                Enter the numeric account ID (will be automatically encoded for ShipHero)
+                Enter the numeric account ID. Fetches up to 50 products at a time to stay within API credit limits.
               </p>
             </div>
             <div className="pt-2">
