@@ -42,6 +42,10 @@ export async function POST(request: NextRequest) {
         total_price: orderData.totalPrice.toString(),
         currency: "USD",
         email: orderData.customerEmail,
+        ...(orderData.customerAccountId && { 
+          partner_order_id: orderData.customerAccountId,
+          account_id: btoa(`Account:${orderData.customerAccountId}`) // Encode account ID for ShipHero
+        }),
         shipping_lines: {
           title: "Standard Shipping",
           price: "0.00"

@@ -12,7 +12,7 @@ import { Upload, CheckCircle, AlertCircle } from "lucide-react"
 import type { InventoryItem } from "@/app/page"
 
 interface DataImportProps {
-  onDataImported: (data: InventoryItem[]) => void
+  onDataImported: (data: InventoryItem[], accountId?: string) => void
   inventoryData: InventoryItem[]
 }
 
@@ -262,7 +262,7 @@ export function DataImport({ onDataImported, inventoryData }: DataImportProps) {
       transformedData.sort((a, b) => a.location.localeCompare(b.location, undefined, { numeric: true, sensitivity: "base" }))
 
       console.log(`[DATA-IMPORT] Transformed ${transformedData.length} items from API data`)
-      onDataImported(transformedData)
+      onDataImported(transformedData, customerAccountId)
       setSuccess(true)
 
     } catch (err) {

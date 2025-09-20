@@ -222,6 +222,7 @@ export class ShipHeroAPI {
     subtotal: number;
     totalPrice: number;
     shopName?: string;
+    customerAccountId?: string;
   }): Promise<string> {
     console.log('[SHIPHERO API] Creating sales order:', {
       orderNumber: orderData.orderNumber,
@@ -229,7 +230,8 @@ export class ShipHeroAPI {
       lineItemsCount: orderData.lineItems.length,
       subtotal: orderData.subtotal,
       totalPrice: orderData.totalPrice,
-      shopName: orderData.shopName
+      shopName: orderData.shopName,
+      customerAccountId: orderData.customerAccountId
     })
     console.log('[SHIPHERO API] Line items:', orderData.lineItems)
     console.log('[SHIPHERO API] Shipping address:', orderData.shippingAddress)

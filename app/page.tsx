@@ -490,13 +490,18 @@ export default function WarehouseApp() {
   const [inventoryData, setInventoryData] = useState<InventoryItem[]>([])
   const [currentBox, setCurrentBox] = useState<BoxItem[]>([])
   const [packedBoxes, setPackedBoxes] = useState<PackedBox[]>([])
+  const [customerAccountId, setCustomerAccountId] = useState<string | null>(null)
 
   const handleConfigChange = (config: ShipHeroConfig) => {
     setShipheroConfig(config)
   }
 
-  const handleDataImported = (data: InventoryItem[]) => {
+  const handleDataImported = (data: InventoryItem[], accountId?: string) => {
     setInventoryData(data)
+    if (accountId) {
+      setCustomerAccountId(accountId)
+      console.log('[APP] Customer account ID set to:', accountId)
+    }
   }
 
   return (
@@ -533,6 +538,7 @@ export default function WarehouseApp() {
             <ManifestView 
               shipheroConfig={shipheroConfig}
               packedBoxes={packedBoxes}
+              customerAccountId={customerAccountId}
             />
           </TabsContent>
           

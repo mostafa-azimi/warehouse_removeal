@@ -11,9 +11,10 @@ import type { ShipHeroConfig } from "@/lib/shiphero-api"
 interface ManifestViewProps {
   packedBoxes: PackedBox[]
   shipheroConfig?: ShipHeroConfig | null
+  customerAccountId?: string | null
 }
 
-export function ManifestView({ packedBoxes, shipheroConfig }: ManifestViewProps) {
+export function ManifestView({ packedBoxes, shipheroConfig, customerAccountId }: ManifestViewProps) {
   const totalBoxes = packedBoxes.length
   const totalItems = packedBoxes.reduce((sum, box) => sum + box.totalItems, 0)
   const totalSKUs = new Set(packedBoxes.flatMap((box) => box.items.map((item) => item.sku))).size
@@ -201,7 +202,8 @@ export function ManifestView({ packedBoxes, shipheroConfig }: ManifestViewProps)
       {shipheroConfig && (
         <SalesOrderIntegration 
           packedBoxes={packedBoxes} 
-          shipheroConfig={shipheroConfig} 
+          shipheroConfig={shipheroConfig}
+          customerAccountId={customerAccountId}
         />
       )}
 

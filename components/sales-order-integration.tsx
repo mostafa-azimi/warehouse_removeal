@@ -15,6 +15,7 @@ import type { PackedBox } from "@/app/page"
 interface SalesOrderIntegrationProps {
   packedBoxes: PackedBox[]
   shipheroConfig: ShipHeroConfig | null
+  customerAccountId?: string | null
 }
 
 interface SalesOrderForm {
@@ -31,7 +32,7 @@ interface SalesOrderForm {
   shopName: string
 }
 
-export function SalesOrderIntegration({ packedBoxes, shipheroConfig }: SalesOrderIntegrationProps) {
+export function SalesOrderIntegration({ packedBoxes, shipheroConfig, customerAccountId }: SalesOrderIntegrationProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [isCreating, setIsCreating] = useState(false)
   const [createdOrders, setCreatedOrders] = useState<Array<{ boxId: string; orderId: string; createdAt: string }>>([])
@@ -192,6 +193,7 @@ export function SalesOrderIntegration({ packedBoxes, shipheroConfig }: SalesOrde
         subtotal,
         totalPrice,
         shopName: formData.shopName,
+        customerAccountId: customerAccountId || undefined, // Pass the customer account ID
       })
 
       // Track the consolidated order for all boxes
@@ -255,6 +257,13 @@ export function SalesOrderIntegration({ packedBoxes, shipheroConfig }: SalesOrde
           </CardTitle>
           <CardDescription>
             Convert your packed boxes into ShipHero sales orders for automated fulfillment
+            {customerAccountId && (
+              <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-md">
+                <span className="text-sm font-medium text-blue-800">
+                  Customer Account: {customerAccountId}
+                </span>
+              </div>
+            )}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
