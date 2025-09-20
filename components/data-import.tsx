@@ -202,20 +202,61 @@ export function DataImport({ onDataImported, inventoryData }: DataImportProps) {
           }
         }
         
-        // Simplified transformation - use primary bin location
-        // This is much more efficient and avoids expensive location queries
-        transformedData.push({
-          item: productInfo?.name || 'Unknown Product',
-          sku: productInfo?.sku || '',
-          warehouse: warehouseName,
-          location: product.inventory_bin || 'Dynamic Location',
-          type: 'product',
-          units: product.on_hand || 0,
-          activeItem: product.on_hand > 0 ? 'yes' : 'no',
-          pickable: 'yes', // Default for products
-          sellable: 'yes', // Default for products
-          creationDate: new Date().toISOString().split('T')[0]
-        })
+        // Create individual entries for each bin location
+        if (product.locations?.edges?.length > 0) {
+          product.locations.edges.forEach((locationEdge: any, locationIndex: number) => {
+            const location = locationEdge.node
+            
+            // Decode location ID to get bin name
+            let binLocation = 'Unknown Bin'
+            if (location.id) {
+              try {
+                // Try to decode location ID if it's base64 encoded
+                const decodedLocation = atob(location.id)
+                // Extract meaningful part (might be like "Location:123" or similar)
+                const locationParts = decodedLocation.split(':')
+                if (locationParts.length > 1) {
+                  binLocation = `Bin-${locationParts[1]}`
+                } else {
+                  binLocation = `Bin-${location.id.substring(0, 8)}`
+                }
+              } catch (e) {
+                // If not base64, use the ID directly (truncated)
+                binLocation = `Bin-${location.id.substring(0, 8)}`
+              }
+            }
+            
+            // Only add locations with quantity > 0
+            if (location.quantity > 0) {
+              transformedData.push({
+                item: productInfo?.name || 'Unknown Product',
+                sku: productInfo?.sku || '',
+                warehouse: warehouseName,
+                location: binLocation,
+                type: 'product',
+                units: location.quantity, // Use specific location quantity
+                activeItem: 'yes', // Active since it has quantity
+                pickable: 'yes', // Default for locations with inventory
+                sellable: 'yes', // Default for locations with inventory
+                creationDate: new Date().toISOString().split('T')[0]
+              })
+            }
+          })
+        } else if (product.inventory_bin && product.on_hand > 0) {
+          // Fallback: if no specific locations but has inventory_bin
+          transformedData.push({
+            item: productInfo?.name || 'Unknown Product',
+            sku: productInfo?.sku || '',
+            warehouse: warehouseName,
+            location: product.inventory_bin,
+            type: 'product',
+            units: product.on_hand,
+            activeItem: 'yes',
+            pickable: 'yes',
+            sellable: 'yes',
+            creationDate: new Date().toISOString().split('T')[0]
+          })
+        }
       })
 
       // Sort by location like the CSV import does
@@ -420,7 +461,7 @@ export function DataImport({ onDataImported, inventoryData }: DataImportProps) {
                 className="h-12 text-base border-2 border-purple-300 focus:border-purple-500 bg-white"
               />
               <p className="text-sm text-purple-600 mt-1">
-                Enter the numeric account ID. Fetches up to 50 products at a time to stay within API credit limits.
+                Enter the numeric account ID. Fetches up to 15 products with individual bin locations to stay within API credit limits.
               </p>
             </div>
             <div className="pt-2">

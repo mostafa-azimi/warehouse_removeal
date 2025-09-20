@@ -60,8 +60,8 @@ async function fetchProductLocations(accessToken: string, customerAccountId: str
       })
     }
 
-    // Optimized query - remove expensive nested location queries initially
-    // We'll get basic product info first, then can query specific locations if needed
+    // Query with locations - but with smaller batch size to manage credits
+    // Each product with locations is expensive, so we'll do smaller batches
     const query = `
       query GetProductLocationsByClient($customer_account_id: String!, $first: Int = 100) {
         warehouse_products(customer_account_id: $customer_account_id) {
@@ -83,6 +83,15 @@ async function fetchProductLocations(accessToken: string, customerAccountId: str
                 warehouse {
                   id
                 }
+                locations(first: 20) {
+                  edges {
+                    node {
+                      id
+                      quantity
+                      warehouse_id
+                    }
+                  }
+                }
               }
             }
             pageInfo {
@@ -94,10 +103,10 @@ async function fetchProductLocations(accessToken: string, customerAccountId: str
       }
     `
 
-    // Start with moderate batch size - without location queries this should be much cheaper
+    // Much smaller batch size since locations are expensive
     const variables = {
       customer_account_id: customerAccountId,
-      first: 50  // Increased since we removed expensive location queries
+      first: 15  // Very small batch to stay within credit limits with location data
     }
 
     const requestBody = { query, variables }
