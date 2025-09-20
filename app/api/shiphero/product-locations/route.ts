@@ -117,14 +117,17 @@ async function fetchProductLocations(accessToken: string, customerAccountId: str
     }
 
     const requestBody = { query, variables }
-    console.log('Sending product locations request to ShipHero:', {
-      url: 'https://public-api.shiphero.com/graphql',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${accessToken.substring(0, 10)}...`
-      },
-      variables
+    
+    console.log('[PRODUCT LOCATIONS API] Detailed request info:', {
+      customerAccountId,
+      originalAccountId: customerAccountId,
+      decodedCheck: customerAccountId ? atob(customerAccountId) : 'N/A',
+      variables,
+      accessTokenLength: accessToken.length,
+      accessTokenPrefix: accessToken.substring(0, 20)
     })
+    
+    console.log('[PRODUCT LOCATIONS API] Full GraphQL request:', JSON.stringify(requestBody, null, 2))
 
     const response = await fetch('https://public-api.shiphero.com/graphql', {
       method: 'POST',
@@ -135,31 +138,58 @@ async function fetchProductLocations(accessToken: string, customerAccountId: str
       body: JSON.stringify(requestBody)
     })
 
-    console.log('ShipHero product locations response status:', response.status)
-    console.log('ShipHero product locations response headers:', Object.fromEntries(response.headers.entries()))
+    console.log('[PRODUCT LOCATIONS API] ShipHero response status:', response.status)
+    console.log('[PRODUCT LOCATIONS API] ShipHero response headers:', Object.fromEntries(response.headers.entries()))
 
     if (!response.ok) {
       const errorText = await response.text()
-      console.log('ShipHero product locations error response:', errorText)
+      console.log('[PRODUCT LOCATIONS API] ShipHero error response (raw):', errorText)
+      
+      // Try to parse the error as JSON for more details
+      let errorDetails
+      try {
+        errorDetails = JSON.parse(errorText)
+        console.log('[PRODUCT LOCATIONS API] ShipHero error response (parsed):', JSON.stringify(errorDetails, null, 2))
+      } catch (e) {
+        console.log('[PRODUCT LOCATIONS API] Could not parse error response as JSON')
+        errorDetails = errorText
+      }
+      
       return NextResponse.json(
-        { error: `ShipHero API error: ${response.status} ${response.statusText}`, details: errorText },
+        { 
+          error: `ShipHero API error: ${response.status} ${response.statusText}`, 
+          details: errorDetails,
+          requestInfo: {
+            customerAccountId,
+            decodedAccountId: atob(customerAccountId),
+            queryUsed: 'warehouse_products'
+          }
+        },
         { status: response.status }
       )
     }
 
     const data = await response.json()
-    console.log('ShipHero product locations response structure:', {
+    console.log('[PRODUCT LOCATIONS API] ShipHero response structure:', {
       hasData: !!data.data,
       hasErrors: !!data.errors,
       warehouseProducts: !!data.data?.warehouse_products,
-      productCount: data.data?.warehouse_products?.data?.edges?.length || 0
+      fullResponse: JSON.stringify(data, null, 2)
     })
     
-    // Check for GraphQL errors
+    // Check for GraphQL errors even with 200 status
     if (data.errors && data.errors.length > 0) {
-      console.error('ShipHero GraphQL errors:', JSON.stringify(data.errors, null, 2))
+      console.log('[PRODUCT LOCATIONS API] GraphQL errors found:', data.errors)
       return NextResponse.json(
-        { error: 'GraphQL errors', details: data.errors },
+        { 
+          error: 'GraphQL errors in response', 
+          details: data.errors,
+          requestInfo: {
+            customerAccountId,
+            decodedAccountId: atob(customerAccountId),
+            queryUsed: 'warehouse_products'
+          }
+        },
         { status: 400 }
       )
     }
