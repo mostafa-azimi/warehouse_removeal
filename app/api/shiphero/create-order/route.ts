@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
             order_number: "${orderData.orderNumber}"
             shop_name: "Warehouse Removal"
             fulfillment_status: "pending"
-            order_date: "${new Date().toLocaleDateString('en-CA')}"
+            order_date: "${new Date(Date.now() + 24 * 60 * 60 * 1000).toLocaleDateString('en-CA')}"
             total_tax: "0.00"
             subtotal: "0.00"
             total_discounts: "0.00"
