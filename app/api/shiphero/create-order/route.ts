@@ -18,14 +18,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Order data is required' }, { status: 400 })
     }
 
-    // Simple string interpolation with proper escaping
-    const escapeString = (str: string) => str?.replace(/"/g, '\\"') || '';
-    
+    // FIXED: Use customer_account_id for 3PL operations
     const mutation = `
       mutation {
         order_create(
           data: {
-            order_number: "${escapeString(orderData.orderNumber)}"
+            customer_account_id: "${orderData.customerAccountId}"
+            order_number: "${orderData.orderNumber}"
             shop_name: "Warehouse Removal"
             fulfillment_status: "pending"
             order_date: "${new Date().toISOString().split('T')[0]}"
@@ -33,43 +32,42 @@ export async function POST(request: NextRequest) {
             subtotal: "0.00"
             total_discounts: "0.00"
             total_price: "0.00"
-            account_id: "90985"
-            email: "${escapeString(orderData.customerEmail)}"
+            email: "${orderData.customerEmail}"
             shipping_lines: {
               title: "Standard Shipping"
               price: "0.00"
             }
             shipping_address: {
-              first_name: "${escapeString(orderData.shippingAddress.firstName)}"
-              last_name: "${escapeString(orderData.shippingAddress.lastName)}"
-              address1: "${escapeString(orderData.shippingAddress.address1)}"
-              city: "${escapeString(orderData.shippingAddress.city)}"
-              state: "${escapeString(orderData.shippingAddress.state)}"
-              zip: "${escapeString(orderData.shippingAddress.zip)}"
+              first_name: "${orderData.shippingAddress.firstName}"
+              last_name: "${orderData.shippingAddress.lastName}"
+              address1: "${orderData.shippingAddress.address1}"
+              city: "${orderData.shippingAddress.city}"
+              state: "${orderData.shippingAddress.state}"
+              zip: "${orderData.shippingAddress.zip}"
               country: "US"
               country_code: "US"
-              email: "${escapeString(orderData.customerEmail)}"
+              email: "${orderData.customerEmail}"
             }
             billing_address: {
-              first_name: "${escapeString(orderData.shippingAddress.firstName)}"
-              last_name: "${escapeString(orderData.shippingAddress.lastName)}"
-              address1: "${escapeString(orderData.shippingAddress.address1)}"
-              city: "${escapeString(orderData.shippingAddress.city)}"
-              state: "${escapeString(orderData.shippingAddress.state)}"
-              zip: "${escapeString(orderData.shippingAddress.zip)}"
+              first_name: "${orderData.shippingAddress.firstName}"
+              last_name: "${orderData.shippingAddress.lastName}"
+              address1: "${orderData.shippingAddress.address1}"
+              city: "${orderData.shippingAddress.city}"
+              state: "${orderData.shippingAddress.state}"
+              zip: "${orderData.shippingAddress.zip}"
               country: "US"
               country_code: "US"
-              email: "${escapeString(orderData.customerEmail)}"
+              email: "${orderData.customerEmail}"
             }
-            line_items: [
-              ${orderData.lineItems.map((item: any, index: number) => `{
-                sku: "${escapeString(item.sku)}"
-                partner_line_item_id: "${Date.now()}-${index}"
-                quantity: ${item.quantity}
-                price: "1.00"
-                product_name: "${escapeString(item.productName)}"
-                fulfillment_status: "pending"
-              }`).join(',')}
+              line_items: [
+                ${orderData.lineItems.map((item: any, index: number) => `{
+                  sku: "${item.sku}"
+                  partner_line_item_id: "${Date.now()}-${index}"
+                  quantity: ${item.quantity}
+                  price: "1.00"
+                  product_name: "${item.productName}"
+                  fulfillment_status: "pending"
+                }`).join(',')}
             ]
           }
         ) {
@@ -94,7 +92,7 @@ export async function POST(request: NextRequest) {
       },
       body: JSON.stringify({
         query: mutation
-      })
+      } )
     })
 
     const responseText = await response.text()
@@ -125,3 +123,4 @@ export async function POST(request: NextRequest) {
     }, { status: 500 })
   }
 }
+
