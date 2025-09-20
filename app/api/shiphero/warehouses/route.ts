@@ -74,32 +74,31 @@ async function fetchWarehouses(accessToken: string) {
     })
   }
 
-  // Use the correct GraphQL query structure from the documentation
+  // Use a simpler warehouses query that should work
   const query = `
     query {
-      account {
+      warehouses {
         request_id
         complexity
         data {
-          warehouses {
-            id
-            legacy_id
-            identifier
-            account_id
-            address {
-              name
-              address1
-              address2
-              city
-              state
-              country
-              zip
-              phone
+          edges {
+            node {
+              id
+              legacy_id
+              identifier
+              account_id
+              profile
+              address {
+                name
+                address1
+                address2
+                city
+                state
+                country
+                zip
+                phone
+              }
             }
-            dynamic_slotting
-            invoice_email
-            phone_number
-            profile
           }
         }
       }

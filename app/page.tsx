@@ -190,9 +190,37 @@ function SimpleSettings({ onConfigChange }: { onConfigChange?: (config: ShipHero
 
       const data = await response.json()
       console.log('[FRONTEND] Success! Received warehouse data:', data)
+      console.log('[FRONTEND] Full data structure:', JSON.stringify(data, null, 2))
       
-      // Extract warehouses from the GraphQL response structure
-      const warehouses = data.account?.data?.warehouses || []
+      // Try different possible paths for warehouses in the response
+      let warehouses = []
+      if (data.data?.warehouses?.data?.edges) {
+        // GraphQL edges/nodes structure
+        warehouses = data.data.warehouses.data.edges.map((edge: any) => edge.node)
+        console.log('[FRONTEND] Found warehouses at: data.data.warehouses.data.edges (GraphQL edges)')
+      } else if (data.warehouses?.data?.edges) {
+        // GraphQL edges/nodes structure (alternative path)
+        warehouses = data.warehouses.data.edges.map((edge: any) => edge.node)
+        console.log('[FRONTEND] Found warehouses at: data.warehouses.data.edges (GraphQL edges)')
+      } else if (data.data?.account?.data?.warehouses) {
+        warehouses = data.data.account.data.warehouses
+        console.log('[FRONTEND] Found warehouses at: data.data.account.data.warehouses')
+      } else if (data.account?.data?.warehouses) {
+        warehouses = data.account.data.warehouses
+        console.log('[FRONTEND] Found warehouses at: data.account.data.warehouses')
+      } else if (data.data?.warehouses) {
+        warehouses = data.data.warehouses
+        console.log('[FRONTEND] Found warehouses at: data.data.warehouses')
+      } else if (data.warehouses) {
+        warehouses = data.warehouses
+        console.log('[FRONTEND] Found warehouses at: data.warehouses')
+      } else {
+        console.log('[FRONTEND] Could not find warehouses in response. Available keys:', Object.keys(data))
+        if (data.data) console.log('[FRONTEND] data.data keys:', Object.keys(data.data))
+        if (data.account) console.log('[FRONTEND] data.account keys:', Object.keys(data.account))
+        if (data.warehouses) console.log('[FRONTEND] data.warehouses keys:', Object.keys(data.warehouses))
+      }
+      
       console.log('[FRONTEND] Extracted warehouses:', warehouses)
       console.log('[FRONTEND] Warehouse count:', warehouses.length)
       
