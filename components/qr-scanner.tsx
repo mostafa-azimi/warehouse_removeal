@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -32,6 +32,14 @@ export function QRScanner({ currentBox, setCurrentBox, packedBoxes, setPackedBox
   const [editingBox, setEditingBox] = useState<string | null>(null)
   const [editingBoxName, setEditingBoxName] = useState("")
   const [editingBoxItems, setEditingBoxItems] = useState<BoxItem[]>([])
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  // Auto-focus input on component mount
+  useEffect(() => {
+    if (inputRef.current) {
+      inputRef.current.focus()
+    }
+  }, [])
 
   useEffect(() => {
     if (packedBoxes.length > 0) {
@@ -54,6 +62,21 @@ export function QRScanner({ currentBox, setCurrentBox, packedBoxes, setPackedBox
     }
 
     if (inputBuffer.trim()) {
+      // Try to parse immediately for complete JSON
+      try {
+        const parsedData = JSON.parse(inputBuffer)
+        if (parsedData.sku && parsedData.quantity) {
+          console.log("[v0] Auto-processing complete JSON:", inputBuffer)
+          setQrInput(inputBuffer)
+          processScan(inputBuffer)
+          setInputBuffer("")
+          return
+        }
+      } catch {
+        // Not complete JSON yet, wait briefly
+      }
+
+      // Only wait 50ms for incomplete input (much faster)
       const timeout = setTimeout(() => {
         try {
           const parsedData = JSON.parse(inputBuffer)
@@ -64,9 +87,9 @@ export function QRScanner({ currentBox, setCurrentBox, packedBoxes, setPackedBox
             setInputBuffer("")
           }
         } catch {
-          // Not valid JSON yet, keep waiting
+          // Still not valid JSON, ignore
         }
-      }, 300) // Wait 300ms after input stops
+      }, 50) // Much faster: 50ms instead of 300ms
 
       setBufferTimeout(timeout)
     }
@@ -96,34 +119,43 @@ export function QRScanner({ currentBox, setCurrentBox, packedBoxes, setPackedBox
         return
       }
 
+      // Pre-find inventory item for efficiency
       const inventoryItem = inventoryData.find((item) => item.sku === parsedData.sku)
-      console.log("[v0] Found inventory item:", inventoryItem)
+      const quantity = Number.parseInt(parsedData.quantity)
 
-      const newItem: BoxItem = {
-        sku: parsedData.sku,
-        quantity: Number.parseInt(parsedData.quantity),
-        itemName: inventoryItem?.item || "Unknown Item",
-        location: inventoryItem?.location || "Unknown Location",
-      }
-
-      console.log("[v0] New item to add:", newItem)
-      console.log("[v0] Current box before adding:", currentBox)
-
+      // Check if item already exists in current box
       const existingIndex = currentBox.findIndex((item) => item.sku === parsedData.sku)
+      
       if (existingIndex >= 0) {
+        // Update existing item
         const updatedBox = [...currentBox]
-        updatedBox[existingIndex].quantity += newItem.quantity
-        console.log("[v0] Updated existing item, new box:", updatedBox)
+        updatedBox[existingIndex].quantity += quantity
+        console.log("[v0] Updated existing item, new quantity:", updatedBox[existingIndex].quantity)
         setCurrentBox(updatedBox)
       } else {
-        const newBox = [...currentBox, newItem]
-        console.log("[v0] Added new item, new box:", newBox)
-        setCurrentBox(newBox)
+        // Add new item
+        const newItem: BoxItem = {
+          sku: parsedData.sku,
+          quantity: quantity,
+          itemName: inventoryItem?.item || "Unknown Item",
+          location: inventoryItem?.location || "Unknown Location",
+        }
+        console.log("[v0] Adding new item:", newItem.sku, "qty:", newItem.quantity)
+        setCurrentBox([...currentBox, newItem])
       }
 
+      // Clear inputs immediately and focus back to input
       setQrInput("")
       setInputBuffer("")
       setError(null)
+      
+      // Auto-focus back to input for rapid scanning
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.focus()
+        }
+      }, 10)
+      
     } catch (err) {
       console.log("[v0] Error parsing QR data:", err)
       setError("Invalid QR code format. Please scan a valid QR code.")
@@ -455,11 +487,13 @@ export function QRScanner({ currentBox, setCurrentBox, packedBoxes, setPackedBox
         <div className="space-y-2">
           <div className="flex gap-2">
             <Input
+              ref={inputRef}
               placeholder='{"sku":"ITEM-001","quantity":5}'
               value={qrInput}
               onChange={handleInputChange}
               onKeyPress={handleKeyPress}
               className="flex-1"
+              autoComplete="off"
             />
             <Button onClick={() => processScan()} disabled={!qrInput.trim()} size="lg">
               <Scan className="mr-2 h-4 w-4" />
