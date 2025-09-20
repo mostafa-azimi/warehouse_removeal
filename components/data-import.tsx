@@ -188,12 +188,26 @@ export function DataImport({ onDataImported, inventoryData }: DataImportProps) {
         const product = edge.node
         const productInfo = product.product
         
+        // Decode warehouse ID for better display
+        let warehouseName = 'Unknown Warehouse'
+        if (product.warehouse?.id) {
+          try {
+            // Decode base64 warehouse ID (e.g., "V2FyZWhvdXNlOjEyODc4OA==" -> "Warehouse:128788")
+            const decodedWarehouse = atob(product.warehouse.id)
+            const warehouseNumber = decodedWarehouse.split(':')[1] || 'Unknown'
+            warehouseName = `Warehouse-${warehouseNumber}`
+          } catch (e) {
+            console.warn('Could not decode warehouse ID:', product.warehouse.id)
+            warehouseName = `Warehouse-${product.warehouse.id.substring(0, 8)}...`
+          }
+        }
+        
         // Simplified transformation - use primary bin location
         // This is much more efficient and avoids expensive location queries
         transformedData.push({
           item: productInfo?.name || 'Unknown Product',
           sku: productInfo?.sku || '',
-          warehouse: `Warehouse-${product.warehouse?.id}` || 'Unknown Warehouse',
+          warehouse: warehouseName,
           location: product.inventory_bin || 'Dynamic Location',
           type: 'product',
           units: product.on_hand || 0,
