@@ -18,9 +18,11 @@ interface QRScannerProps {
   packedBoxes: PackedBox[]
   setPackedBoxes: (boxes: PackedBox[]) => void
   inventoryData: InventoryItem[]
+  scannedCombinations: Set<string>
+  setScannedCombinations: (combinations: Set<string>) => void
 }
 
-export function QRScanner({ currentBox, setCurrentBox, packedBoxes, setPackedBoxes, inventoryData }: QRScannerProps) {
+export function QRScanner({ currentBox, setCurrentBox, packedBoxes, setPackedBoxes, inventoryData, scannedCombinations, setScannedCombinations }: QRScannerProps) {
   const [qrInput, setQrInput] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [nextBoxNumber, setNextBoxNumber] = useState(1)
@@ -33,6 +35,11 @@ export function QRScanner({ currentBox, setCurrentBox, packedBoxes, setPackedBox
   const [editingBoxName, setEditingBoxName] = useState("")
   const [editingBoxItems, setEditingBoxItems] = useState<BoxItem[]>([])
   const inputRef = useRef<HTMLInputElement>(null)
+
+  // Helper function to generate unique scan key
+  const generateScanKey = (sku: string, location: string, quantity: number) => {
+    return `${sku}-${location}-${quantity}`
+  }
 
   // Auto-focus input on component mount
   useEffect(() => {
@@ -76,7 +83,7 @@ export function QRScanner({ currentBox, setCurrentBox, packedBoxes, setPackedBox
         // Not complete JSON yet, wait briefly
       }
 
-      // Only wait 50ms for incomplete input (much faster)
+      // Only wait 20ms for incomplete input (ultra fast)
       const timeout = setTimeout(() => {
         try {
           const parsedData = JSON.parse(inputBuffer)
@@ -89,7 +96,7 @@ export function QRScanner({ currentBox, setCurrentBox, packedBoxes, setPackedBox
         } catch {
           // Still not valid JSON, ignore
         }
-      }, 50) // Much faster: 50ms instead of 300ms
+      }, 20) // Ultra fast: 20ms for barcode scanners
 
       setBufferTimeout(timeout)
     }
@@ -122,6 +129,14 @@ export function QRScanner({ currentBox, setCurrentBox, packedBoxes, setPackedBox
       // Pre-find inventory item for efficiency
       const inventoryItem = inventoryData.find((item) => item.sku === parsedData.sku)
       const quantity = Number.parseInt(parsedData.quantity)
+      const location = parsedData.location || inventoryItem?.location || "Unknown Location"
+
+      // Check for duplicate scan
+      const scanKey = generateScanKey(parsedData.sku, location, quantity)
+      if (scannedCombinations.has(scanKey)) {
+        setError(`⚠️ Already scanned: ${parsedData.sku} from ${location} (${quantity} units). This exact combination was already processed.`)
+        return
+      }
 
       // Check if item already exists in current box
       const existingIndex = currentBox.findIndex((item) => item.sku === parsedData.sku)
@@ -138,11 +153,15 @@ export function QRScanner({ currentBox, setCurrentBox, packedBoxes, setPackedBox
           sku: parsedData.sku,
           quantity: quantity,
           itemName: inventoryItem?.item || "Unknown Item",
-          location: inventoryItem?.location || "Unknown Location",
+          location: location,
         }
         console.log("[v0] Adding new item:", newItem.sku, "qty:", newItem.quantity)
         setCurrentBox([...currentBox, newItem])
       }
+
+      // Add to scanned combinations to prevent duplicates
+      setScannedCombinations(new Set([...scannedCombinations, scanKey]))
+      console.log("[v0] Added scan key to combinations:", scanKey)
 
       // Clear inputs immediately and focus back to input
       setQrInput("")
@@ -166,6 +185,23 @@ export function QRScanner({ currentBox, setCurrentBox, packedBoxes, setPackedBox
     const value = e.target.value
     setQrInput(value)
     setInputBuffer(value)
+    
+    // Immediate processing for complete JSON (barcode scanners often send complete data)
+    if (value.trim().startsWith('{') && value.trim().endsWith('}')) {
+      try {
+        const parsedData = JSON.parse(value)
+        if (parsedData.sku && parsedData.quantity) {
+          console.log("[v0] Immediate processing of complete JSON:", value)
+          // Process immediately without waiting
+          setTimeout(() => {
+            processScan(value)
+          }, 10) // Minimal delay to allow UI update
+          return
+        }
+      } catch {
+        // Not valid JSON, continue with buffer system
+      }
+    }
   }
 
   const handleKeyPress = (e: React.KeyboardEvent) => {

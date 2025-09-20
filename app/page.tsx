@@ -491,6 +491,7 @@ export default function WarehouseApp() {
   const [currentBox, setCurrentBox] = useState<BoxItem[]>([])
   const [packedBoxes, setPackedBoxes] = useState<PackedBox[]>([])
   const [customerAccountId, setCustomerAccountId] = useState<string | null>(null)
+  const [scannedCombinations, setScannedCombinations] = useState<Set<string>>(new Set())
 
   const handleConfigChange = (config: ShipHeroConfig) => {
     setShipheroConfig(config)
@@ -531,6 +532,8 @@ export default function WarehouseApp() {
               packedBoxes={packedBoxes}
               setPackedBoxes={setPackedBoxes}
               inventoryData={inventoryData}
+              scannedCombinations={scannedCombinations}
+              setScannedCombinations={setScannedCombinations}
             />
           </TabsContent>
           
