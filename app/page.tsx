@@ -329,6 +329,38 @@ function SimpleSettings({ onConfigChange }: { onConfigChange?: (config: ShipHero
           </div>
         )}
 
+        <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-md">
+          <h3 className="text-lg font-medium text-green-800 mb-2">🧪 Test Token (Quick Setup)</h3>
+          <div className="text-sm text-green-700 space-y-3">
+            <p><strong>For testing:</strong> Use this sample refresh token to quickly test the integration:</p>
+            <div className="bg-green-100 p-3 rounded border flex items-center justify-between">
+              <code className="font-mono text-xs break-all select-all mr-2">
+                hFvnmq8bQGwlbn48SwNqnzFIpOlSizyb1aubxZtB5d42-
+              </code>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText('hFvnmq8bQGwlbn48SwNqnzFIpOlSizyb1aubxZtB5d42-')
+                  alert('Test token copied to clipboard!')
+                }}
+                className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 flex-shrink-0"
+              >
+                📋 Copy
+              </button>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  setRefreshToken('hFvnmq8bQGwlbn48SwNqnzFIpOlSizyb1aubxZtB5d42-')
+                }}
+                className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
+              >
+                🚀 Use Test Token
+              </button>
+              <span className="text-xs text-green-600">← Click to auto-fill the refresh token field above</span>
+            </div>
+          </div>
+        </div>
+
         <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-md">
           <h3 className="text-lg font-medium text-blue-800 mb-2">💡 How to Generate Access Tokens</h3>
           <div className="text-sm text-blue-700 space-y-2">
