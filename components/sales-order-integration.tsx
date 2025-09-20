@@ -125,7 +125,7 @@ export function SalesOrderIntegration({ packedBoxes, shipheroConfig }: SalesOrde
     }
   }
 
-  const createAllSalesOrders = async () => {
+  const createConsolidatedSalesOrder = async () => {
     if (!shipheroConfig) {
       setError("ShipHero API not configured. Please set up your API credentials in Settings.")
       return
@@ -137,57 +137,80 @@ export function SalesOrderIntegration({ packedBoxes, shipheroConfig }: SalesOrde
 
     try {
       const api = new ShipHeroAPI(shipheroConfig)
-      const results = []
-
-      for (const box of packedBoxes) {
-        // Skip if already created
-        if (createdOrders.some(order => order.boxId === box.id)) {
-          continue
-        }
-
-        const lineItems = box.items.map(item => ({
-          sku: item.sku,
-          quantity: item.quantity,
-          price: 0.00,
-          productName: item.itemName,
-        }))
-
-        const subtotal = lineItems.reduce((sum, item) => sum + (item.price * item.quantity), 0)
-        const totalPrice = subtotal
-
-        const orderId = await api.createSalesOrder({
-          orderNumber: `${box.id}-${Date.now()}`,
-          customerEmail: formData.customerEmail,
-          lineItems,
-          shippingAddress: {
-            firstName: formData.shippingFirstName,
-            lastName: formData.shippingLastName,
-            address1: formData.shippingAddress1,
-            address2: formData.shippingAddress2 || undefined,
-            city: formData.shippingCity,
-            state: formData.shippingState,
-            zip: formData.shippingZip,
-            country: formData.shippingCountry,
-            email: formData.customerEmail,
-            phone: formData.shippingPhone,
-          },
-          subtotal,
-          totalPrice,
-          shopName: formData.shopName,
+      
+      // Consolidate all items from all boxes into a single line item map
+      const consolidatedItems = new Map<string, { 
+        sku: string; 
+        quantity: number; 
+        price: number; 
+        productName: string; 
+      }>()
+      
+      // Process all boxes and consolidate items by SKU
+      packedBoxes.forEach(box => {
+        box.items.forEach(item => {
+          const existingItem = consolidatedItems.get(item.sku)
+          if (existingItem) {
+            // Add to existing quantity
+            existingItem.quantity += item.quantity
+          } else {
+            // Add new item
+            consolidatedItems.set(item.sku, {
+              sku: item.sku,
+              quantity: item.quantity,
+              price: 0.00, // Default price for removal items
+              productName: item.itemName,
+            })
+          }
         })
+      })
 
-        results.push({ boxId: box.id, orderId })
-      }
+      const lineItems = Array.from(consolidatedItems.values())
+      const subtotal = lineItems.reduce((sum, item) => sum + (item.price * item.quantity), 0)
+      const totalPrice = subtotal // No tax or shipping for removal orders
+      
+      console.log('[SALES ORDER] Creating consolidated order with', lineItems.length, 'unique SKUs')
+      console.log('[SALES ORDER] Total items from', packedBoxes.length, 'boxes')
 
+      // Create single consolidated sales order
+      const orderId = await api.createSalesOrder({
+        orderNumber: `CONSOLIDATED-${Date.now()}`,
+        customerEmail: formData.customerEmail,
+        lineItems,
+        shippingAddress: {
+          firstName: formData.shippingFirstName,
+          lastName: formData.shippingLastName,
+          address1: formData.shippingAddress1,
+          address2: formData.shippingAddress2 || undefined,
+          city: formData.shippingCity,
+          state: formData.shippingState,
+          zip: formData.shippingZip,
+          country: formData.shippingCountry,
+          email: formData.customerEmail,
+          phone: formData.shippingPhone,
+        },
+        subtotal,
+        totalPrice,
+        shopName: formData.shopName,
+      })
+
+      // Track the consolidated order for all boxes
       setCreatedOrders(prev => [
         ...prev,
-        ...results.map(result => ({
-          ...result,
+        {
+          boxId: 'CONSOLIDATED',
+          orderId,
           createdAt: new Date().toISOString(),
-        }))
+        }
       ])
 
-      setSuccess(`Created ${results.length} sales orders successfully!`)
+      setSuccess(`Successfully created consolidated sales order! Order ID: ${orderId} (${lineItems.length} unique SKUs from ${packedBoxes.length} boxes)`)
+      
+      // Reset form
+      setFormData(prev => ({
+        ...prev,
+        customerEmail: "", // Keep other fields for convenience
+      }))
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create sales orders')
     } finally {
@@ -364,19 +387,19 @@ export function SalesOrderIntegration({ packedBoxes, shipheroConfig }: SalesOrde
 
           <div className="flex gap-2">
             <Button 
-              onClick={createAllSalesOrders}
+              onClick={createConsolidatedSalesOrder}
               disabled={isCreating || packedBoxes.length === 0}
               className="flex-1"
             >
               {isCreating ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Creating Orders...
+                  Creating Consolidated Order...
                 </>
               ) : (
                 <>
                   <Plus className="h-4 w-4 mr-2" />
-                  Create All Orders ({packedBoxes.length})
+                  Create Consolidated Order ({packedBoxes.length} boxes)
                 </>
               )}
             </Button>

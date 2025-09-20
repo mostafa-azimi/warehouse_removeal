@@ -287,11 +287,34 @@ export class ShipHeroAPI {
     console.log('[SHIPHERO API] Order creation variables:', JSON.stringify(variables, null, 2))
 
     try {
-      const data = await this.makeGraphQLRequest(mutation, variables);
+      const accessToken = await this.getValidAccessToken();
+      
+      const response = await fetch('/api/shiphero/create-order', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          accessToken,
+          orderData
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error('[SHIPHERO API] Create order API request failed:', errorData)
+        throw new Error(errorData.error || `HTTP ${response.status}`)
+      }
+
+      const data = await response.json()
       console.log('[SHIPHERO API] Order creation successful:', data)
-      const orderId = data.order_create.order.id
-      console.log('[SHIPHERO API] Created order with ID:', orderId)
-      return orderId;
+      
+      if (!data.success || !data.orderId) {
+        throw new Error('Invalid response from create order API')
+      }
+      
+      console.log('[SHIPHERO API] Created order with ID:', data.orderId)
+      return data.orderId;
     } catch (error) {
       console.error('[SHIPHERO API] Failed to create sales order:', error)
       throw new Error(`Failed to create sales order: ${error instanceof Error ? error.message : 'Unknown error'}`);
