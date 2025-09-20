@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { DataImport } from '@/components/data-import'
 import { QRScanner } from '@/components/qr-scanner'
 import { ManifestView } from '@/components/manifest-view'
+import { ShipHeroConfig } from '@/lib/shiphero-api'
 // Simple Settings component that works without API calls
 interface Warehouse {
   id: string
@@ -83,7 +84,7 @@ function SimpleSettings({ onConfigChange }: { onConfigChange?: (config: ShipHero
     setSavedConfig(null)
     setRefreshToken("")
     setAccessToken("")
-    onConfigChange?.(null)
+    if (onConfigChange) onConfigChange(null as any)
     alert('Configuration cleared')
   }
 
@@ -336,23 +337,7 @@ function SimpleSettings({ onConfigChange }: { onConfigChange?: (config: ShipHero
               Required: Get this from your ShipHero developer account
             </p>
           </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Access Token (Optional)
-            </label>
-            <input
-              type="text"
-              value={accessToken}
-              onChange={(e) => setAccessToken(e.target.value)}
-              placeholder="Enter your ShipHero access token (if you have one)"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <p className="text-sm text-gray-500 mt-1">
-              Optional: If you already have an access token, you can enter it here
-            </p>
-          </div>
-
+          
           <div className="flex flex-wrap gap-3 pt-4">
             <button
               onClick={saveConfig}
@@ -415,293 +400,61 @@ function SimpleSettings({ onConfigChange }: { onConfigChange?: (config: ShipHero
           </div>
         )}
 
-        <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-md">
-          <h3 className="text-lg font-medium text-green-800 mb-2">🧪 Test Token (Quick Setup)</h3>
-          <div className="text-sm text-green-700 space-y-3">
-            <p><strong>For testing:</strong> Use this sample refresh token to quickly test the integration:</p>
-            <div className="bg-green-100 p-3 rounded border flex items-center justify-between">
-              <code className="font-mono text-xs break-all select-all mr-2">
-                hFvnmq8bQGwlbn48SwNqnzFIpOlSizyb1aubxZtB5d42-
-              </code>
-              <button
-                onClick={() => {
-                  navigator.clipboard.writeText('hFvnmq8bQGwlbn48SwNqnzFIpOlSizyb1aubxZtB5d42-')
-                  alert('Test token copied to clipboard!')
-                }}
-                className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 flex-shrink-0"
-              >
-                📋 Copy
-              </button>
+        {warehouses.length > 0 && (
+          <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-6">
+            <h3 className="text-lg font-semibold text-blue-900 mb-4">
+              Connection Test Results
+            </h3>
+            <div className="mb-4">
+              <span className="text-blue-700 font-medium">
+                Status: Connected successfully • {warehouses.length} warehouses found
+              </span>
             </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => {
-                  setRefreshToken('hFvnmq8bQGwlbn48SwNqnzFIpOlSizyb1aubxZtB5d42-')
-                }}
-                className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
-              >
-                🚀 Use Test Token
-              </button>
-              <span className="text-xs text-green-600">← Click to auto-fill the refresh token field above</span>
+            
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-blue-200 bg-white rounded-lg shadow-sm">
+                <thead className="bg-blue-100">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-blue-900 uppercase tracking-wider">
+                      ID
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-blue-900 uppercase tracking-wider">
+                      Name
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-blue-900 uppercase tracking-wider">
+                      Address
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-blue-100">
+                  {warehouses.map((warehouse, index) => (
+                    <tr key={warehouse.id} className={index % 2 === 0 ? 'bg-white' : 'bg-blue-50'}>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm font-mono text-gray-900">
+                        {warehouse.decodedId}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {warehouse.name}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-700">
+                        <div className="space-y-1">
+                          <div>{warehouse.address.address1}</div>
+                          {warehouse.address.address2 && <div>{warehouse.address.address2}</div>}
+                          <div className="text-gray-500">
+                            {warehouse.address.city}, {warehouse.address.state} {warehouse.address.zip}
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          </div>
-        </div>
-
-        <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-md">
-          <h3 className="text-lg font-medium text-blue-800 mb-2">💡 How to Generate Access Tokens</h3>
-          <div className="text-sm text-blue-700 space-y-2">
-            <p><strong>Easy way:</strong> Click the "🔄 Generate Access Token" button above after entering your refresh token!</p>
-            <p><strong>Manual way:</strong> Use this curl command:</p>
-            <div className="bg-blue-100 p-3 rounded font-mono text-xs overflow-x-auto">
-              curl -X POST -H "Content-Type: application/json" -d<br/>
-              '{`{"refresh_token": "YOUR_REFRESH_TOKEN"}`}' \<br/>
-              https://public-api.shiphero.com/auth/refresh
-            </div>
-            <p className="text-xs">
-              <strong>Note:</strong> The button uses a server-side API route to bypass CORS restrictions.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* 3PL Customer Account Section */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-gray-900">3PL Customer Data (Optional)</h2>
-          <div className="flex items-center space-x-2">
-            <input
-              type="checkbox"
-              id="3pl-mode"
-              checked={is3PLMode}
-              onChange={(e) => setIs3PLMode(e.target.checked)}
-              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-            />
-            <label htmlFor="3pl-mode" className="text-sm font-medium text-gray-700">
-              Enable 3PL Mode
-            </label>
-          </div>
-        </div>
-
-        {is3PLMode && (
-          <div className="space-y-4">
-            <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
-              <div className="flex">
-                <div className="ml-3">
-                  <h3 className="text-sm font-medium text-yellow-800">3PL Mode Enabled</h3>
-                  <div className="mt-2 text-sm text-yellow-700">
-                    <p>This mode allows you to query product locations for specific customer accounts. Enter the customer account ID to retrieve their inventory data directly from ShipHero.</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Customer Account ID *
-              </label>
-              <input
-                type="text"
-                value={customerAccountId}
-                onChange={(e) => setCustomerAccountId(e.target.value)}
-                placeholder="e.g., QWNjb3VudDo4NTg3OQ=="
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <p className="text-sm text-gray-500 mt-1">
-                The encoded customer account ID from ShipHero (required for 3PL operations)
-              </p>
-            </div>
-
-            <div className="flex gap-3 pt-4">
-              <button
-                onClick={loadProductLocations}
-                disabled={!customerAccountId.trim() || isLoadingProducts || !(accessToken || savedConfig?.accessToken)}
-                className={`px-4 py-2 text-white rounded-md focus:outline-none focus:ring-2 ${
-                  !customerAccountId.trim() || isLoadingProducts || !(accessToken || savedConfig?.accessToken)
-                    ? 'bg-gray-400 cursor-not-allowed'
-                    : 'bg-purple-600 hover:bg-purple-700 focus:ring-purple-500'
-                }`}
-              >
-                {isLoadingProducts ? '🔄 Loading...' : '📦 Load Product Locations'}
-              </button>
-              
-              {productLocations.length > 0 && (
-                <button
-                  onClick={() => setShowProductData(!showProductData)}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                >
-                  {showProductData ? '🙈 Hide Data' : '👁️ Show Data'} ({productLocations.length} products)
-                </button>
-              )}
-            </div>
-
-            {showProductData && productLocations.length > 0 && (
-              <div className="mt-6 bg-indigo-50 border border-indigo-200 rounded-lg p-6">
-                <h3 className="text-lg font-semibold text-indigo-900 mb-4">
-                  Product Location Data ({productLocations.length} products)
-                </h3>
-                
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-indigo-200 bg-white rounded-lg shadow-sm">
-                    <thead className="bg-indigo-100">
-                      <tr>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-indigo-900 uppercase tracking-wider">
-                          SKU
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-indigo-900 uppercase tracking-wider">
-                          Product Name
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-indigo-900 uppercase tracking-wider">
-                          On Hand
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-indigo-900 uppercase tracking-wider">
-                          Primary Bin
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-indigo-900 uppercase tracking-wider">
-                          Locations
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-indigo-100">
-                      {productLocations.slice(0, 10).map((product: any, index: number) => (
-                        <tr key={product.id} className={index % 2 === 0 ? 'bg-white' : 'bg-indigo-50'}>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm font-mono text-gray-900">
-                            {product.product?.sku || 'N/A'}
-                          </td>
-                          <td className="px-4 py-3 text-sm font-medium text-gray-900">
-                            {product.product?.name || 'N/A'}
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
-                            {product.on_hand || 0}
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700 font-mono">
-                            {product.inventory_bin || 'Dynamic'}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-700">
-                            {product.locations?.edges?.length > 0 ? (
-                              <div className="space-y-1">
-                                {product.locations.edges.slice(0, 3).map((locationEdge: any, idx: number) => (
-                                  <div key={idx} className="text-xs">
-                                    <span className="font-mono">{locationEdge.node.name}</span>
-                                    <span className="text-gray-500"> ({locationEdge.node.quantity})</span>
-                                  </div>
-                                ))}
-                                {product.locations.edges.length > 3 && (
-                                  <div className="text-xs text-gray-500">
-                                    +{product.locations.edges.length - 3} more...
-                                  </div>
-                                )}
-                              </div>
-                            ) : (
-                              <span className="text-gray-500">No locations</span>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                
-                {productLocations.length > 10 && (
-                  <p className="text-sm text-indigo-700 mt-4">
-                    Showing 10 of {productLocations.length} products. 
-                    <button 
-                      onClick={() => {
-                        const csvData = productLocations.map(product => ({
-                          sku: product.product?.sku || '',
-                          name: product.product?.name || '',
-                          on_hand: product.on_hand || 0,
-                          inventory_bin: product.inventory_bin || '',
-                          locations: product.locations?.edges?.map((e: any) => `${e.node.name}:${e.node.quantity}`).join(';') || ''
-                        }))
-                        const csv = [
-                          'SKU,Name,On Hand,Primary Bin,Locations',
-                          ...csvData.map(row => `"${row.sku}","${row.name}",${row.on_hand},"${row.inventory_bin}","${row.locations}"`)
-                        ].join('\n')
-                        const blob = new Blob([csv], { type: 'text/csv' })
-                        const url = URL.createObjectURL(blob)
-                        const a = document.createElement('a')
-                        a.href = url
-                        a.download = `product-locations-${customerAccountId}-${new Date().toISOString().split('T')[0]}.csv`
-                        document.body.appendChild(a)
-                        a.click()
-                        document.body.removeChild(a)
-                        URL.revokeObjectURL(url)
-                      }}
-                      className="ml-2 text-indigo-600 hover:text-indigo-800 underline cursor-pointer"
-                    >
-                      Download full CSV
-                    </button>
-                  </p>
-                )}
-              </div>
-            )}
           </div>
         )}
       </div>
-
-      {/* Connection Test Results */}
-      {warehouses.length > 0 && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-          <h3 className="text-lg font-semibold text-blue-900 mb-4">
-            Connection Test Results
-          </h3>
-          <div className="mb-4">
-            <span className="text-blue-700 font-medium">
-              Status: Connected successfully • {warehouses.length} warehouses found
-            </span>
-          </div>
-          
-          <details className="mb-4">
-            <summary className="text-blue-600 cursor-pointer hover:text-blue-800 font-medium">
-              ▶ Debug: Warehouse data
-            </summary>
-          </details>
-
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-blue-200 bg-white rounded-lg shadow-sm">
-              <thead className="bg-blue-100">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-blue-900 uppercase tracking-wider">
-                    ID
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-blue-900 uppercase tracking-wider">
-                    Name
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-blue-900 uppercase tracking-wider">
-                    Address
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-blue-100">
-                {warehouses.map((warehouse, index) => (
-                  <tr key={warehouse.id} className={index % 2 === 0 ? 'bg-white' : 'bg-blue-50'}>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm font-mono text-gray-900">
-                      {warehouse.decodedId}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {warehouse.name}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-700">
-                      <div className="space-y-1">
-                        <div>{warehouse.address.address1}</div>
-                        {warehouse.address.address2 && <div>{warehouse.address.address2}</div>}
-                        <div className="text-gray-500">
-                          {warehouse.address.city}, {warehouse.address.state} {warehouse.address.zip}
-                        </div>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
-
-import { ShipHeroConfig } from '@/lib/shiphero-api'
 
 // Define types
 export interface InventoryItem {
