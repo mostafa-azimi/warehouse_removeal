@@ -192,33 +192,22 @@ function SimpleSettings({ onConfigChange }: { onConfigChange?: (config: ShipHero
       console.log('[FRONTEND] Success! Received warehouse data:', data)
       console.log('[FRONTEND] Full data structure:', JSON.stringify(data, null, 2))
       
-      // Try different possible paths for warehouses in the response
+      // Extract warehouses from the correct GraphQL response structure based on documentation
       let warehouses = []
-      if (data.data?.warehouses?.data?.edges) {
-        // GraphQL edges/nodes structure
-        warehouses = data.data.warehouses.data.edges.map((edge: any) => edge.node)
-        console.log('[FRONTEND] Found warehouses at: data.data.warehouses.data.edges (GraphQL edges)')
-      } else if (data.warehouses?.data?.edges) {
-        // GraphQL edges/nodes structure (alternative path)
-        warehouses = data.warehouses.data.edges.map((edge: any) => edge.node)
-        console.log('[FRONTEND] Found warehouses at: data.warehouses.data.edges (GraphQL edges)')
-      } else if (data.data?.account?.data?.warehouses) {
+      if (data.data?.account?.data?.warehouses) {
+        // Correct path based on ShipHero documentation: data.account.data.warehouses
         warehouses = data.data.account.data.warehouses
-        console.log('[FRONTEND] Found warehouses at: data.data.account.data.warehouses')
+        console.log('[FRONTEND] Found warehouses at: data.data.account.data.warehouses (from GraphQL response)')
       } else if (data.account?.data?.warehouses) {
+        // Alternative path if data wrapper is missing
         warehouses = data.account.data.warehouses
         console.log('[FRONTEND] Found warehouses at: data.account.data.warehouses')
-      } else if (data.data?.warehouses) {
-        warehouses = data.data.warehouses
-        console.log('[FRONTEND] Found warehouses at: data.data.warehouses')
-      } else if (data.warehouses) {
-        warehouses = data.warehouses
-        console.log('[FRONTEND] Found warehouses at: data.warehouses')
       } else {
         console.log('[FRONTEND] Could not find warehouses in response. Available keys:', Object.keys(data))
         if (data.data) console.log('[FRONTEND] data.data keys:', Object.keys(data.data))
         if (data.account) console.log('[FRONTEND] data.account keys:', Object.keys(data.account))
-        if (data.warehouses) console.log('[FRONTEND] data.warehouses keys:', Object.keys(data.warehouses))
+        if (data.data?.account) console.log('[FRONTEND] data.data.account keys:', Object.keys(data.data.account))
+        if (data.data?.account?.data) console.log('[FRONTEND] data.data.account.data keys:', Object.keys(data.data.account.data))
       }
       
       console.log('[FRONTEND] Extracted warehouses:', warehouses)
@@ -228,7 +217,7 @@ function SimpleSettings({ onConfigChange }: { onConfigChange?: (config: ShipHero
       const transformedWarehouses = warehouses.map((warehouse: any) => ({
         id: warehouse.id,
         identifier: warehouse.identifier,
-        name: warehouse.identifier, // Using identifier as name since name field might not be available
+        name: warehouse.profile?.name || warehouse.identifier, // Use profile name or fallback to identifier
         address: {
           name: warehouse.address?.name || '',
           address1: warehouse.address?.address1 || '',
@@ -239,7 +228,12 @@ function SimpleSettings({ onConfigChange }: { onConfigChange?: (config: ShipHero
           country: warehouse.address?.country || ''
         },
         is_active: true, // Assume active since it's returned from API
-        decodedId: warehouse.legacy_id || warehouse.id
+        decodedId: warehouse.legacy_id || warehouse.id,
+        // Additional fields from the API
+        profile: warehouse.profile,
+        settings: warehouse.settings,
+        created_at: warehouse.created_at,
+        updated_at: warehouse.updated_at
       }))
       
       setWarehouses(transformedWarehouses)

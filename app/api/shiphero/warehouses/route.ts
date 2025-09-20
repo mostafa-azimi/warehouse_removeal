@@ -74,31 +74,38 @@ async function fetchWarehouses(accessToken: string) {
     })
   }
 
-  // Use a simpler warehouses query that should work
+  // Use the correct warehouse query structure from the official documentation
   const query = `
-    query {
-      warehouses {
+    query GetAllWarehouses {
+      account {
         request_id
         complexity
         data {
-          edges {
-            node {
-              id
-              legacy_id
-              identifier
-              account_id
-              profile
-              address {
-                name
-                address1
-                address2
-                city
-                state
-                country
-                zip
-                phone
-              }
+          warehouses {
+            id
+            legacy_id
+            identifier
+            address {
+              name
+              address1
+              address2
+              city
+              state
+              country
+              zip
+              phone
             }
+            profile {
+              name
+              timezone
+            }
+            settings {
+              auto_allocate
+              auto_ship
+              default_box_id
+            }
+            created_at
+            updated_at
           }
         }
       }
