@@ -1,0 +1,199 @@
+import { NextRequest, NextResponse } from 'next/server'
+
+// Simple in-memory cache for product location data
+interface CacheEntry {
+  data: any
+  timestamp: number
+  accessToken: string
+  customerAccountId: string
+}
+
+const productLocationCache = new Map<string, CacheEntry>()
+const CACHE_DURATION = 5 * 60 * 1000 // 5 minutes (product data changes more frequently)
+
+export async function POST(request: NextRequest) {
+  try {
+    console.log('ShipHero product locations API route called (POST)')
+    const body = await request.json()
+    const { accessToken, customerAccountId } = body
+    
+    console.log('Access token received:', accessToken ? 'Present' : 'Missing')
+    console.log('Customer account ID:', customerAccountId)
+    
+    if (!accessToken) {
+      console.log('No access token provided')
+      return NextResponse.json({ error: 'Access token required' }, { status: 401 })
+    }
+
+    if (!customerAccountId) {
+      console.log('No customer account ID provided')
+      return NextResponse.json({ error: 'Customer account ID required' }, { status: 400 })
+    }
+
+    return await fetchProductLocations(accessToken, customerAccountId)
+  } catch (error: any) {
+    console.error('ShipHero product locations API error:', error)
+    return NextResponse.json(
+      { error: 'Internal server error', details: error.message },
+      { status: 500 }
+    )
+  }
+}
+
+async function fetchProductLocations(accessToken: string, customerAccountId: string) {
+  try {
+    // Check cache first for faster loading
+    const cacheKey = `products_${customerAccountId}_${accessToken.substring(0, 10)}`
+    const cachedEntry = productLocationCache.get(cacheKey)
+    const now = Date.now()
+    
+    if (cachedEntry && (now - cachedEntry.timestamp) < CACHE_DURATION && cachedEntry.accessToken === accessToken) {
+      console.log('🚀 Returning cached product location data (faster loading)')
+      return NextResponse.json({
+        ...cachedEntry.data,
+        cached: true,
+        cacheAge: Math.round((now - cachedEntry.timestamp) / 1000)
+      }, {
+        headers: {
+          'Cache-Control': 'public, max-age=300', // 5 minutes client-side cache
+        }
+      })
+    }
+
+    // Use the product locations query structure from the documentation
+    const query = `
+      query GetProductLocationsByAccount($customer_account_id: String!, $first: Int) {
+        warehouse_products(customer_account_id: $customer_account_id) {
+          request_id
+          complexity
+          data(first: $first) {
+            edges {
+              node {
+                id
+                account_id
+                on_hand
+                inventory_bin
+                reserve_inventory
+                reorder_amount
+                reorder_level
+                custom
+                warehouse {
+                  id
+                  profile
+                  dynamic_slotting
+                }
+                product {
+                  id
+                  name
+                  sku
+                  barcode
+                }
+                locations(first: 50) {
+                  edges {
+                    node {
+                      id
+                      name
+                      quantity
+                      pickable
+                      sellable
+                      warehouse_id
+                    }
+                  }
+                }
+              }
+            }
+            pageInfo {
+              hasNextPage
+              endCursor
+            }
+          }
+        }
+      }
+    `
+
+    const variables = {
+      customer_account_id: customerAccountId,
+      first: 100
+    }
+
+    const requestBody = { query, variables }
+    console.log('Sending product locations request to ShipHero:', {
+      url: 'https://public-api.shiphero.com/graphql',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken.substring(0, 10)}...`
+      },
+      variables
+    })
+
+    const response = await fetch('https://public-api.shiphero.com/graphql', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`
+      },
+      body: JSON.stringify(requestBody)
+    })
+
+    console.log('ShipHero product locations response status:', response.status)
+    console.log('ShipHero product locations response headers:', Object.fromEntries(response.headers.entries()))
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.log('ShipHero product locations error response:', errorText)
+      return NextResponse.json(
+        { error: `ShipHero API error: ${response.status} ${response.statusText}`, details: errorText },
+        { status: response.status }
+      )
+    }
+
+    const data = await response.json()
+    console.log('ShipHero product locations response structure:', {
+      hasData: !!data.data,
+      hasErrors: !!data.errors,
+      warehouseProducts: !!data.data?.warehouse_products,
+      productCount: data.data?.warehouse_products?.data?.edges?.length || 0
+    })
+    
+    // Check for GraphQL errors
+    if (data.errors && data.errors.length > 0) {
+      console.error('ShipHero GraphQL errors:', JSON.stringify(data.errors, null, 2))
+      return NextResponse.json(
+        { error: 'GraphQL errors', details: data.errors },
+        { status: 400 }
+      )
+    }
+    
+    // Cache the result for faster subsequent loads
+    productLocationCache.set(cacheKey, {
+      data: { ...data, cached: false, cacheAge: 0 },
+      timestamp: now,
+      accessToken,
+      customerAccountId
+    })
+
+    // Clean up old cache entries
+    for (const [key, entry] of productLocationCache.entries()) {
+      if ((now - entry.timestamp) > CACHE_DURATION * 2) {
+        productLocationCache.delete(key)
+      }
+    }
+
+    return NextResponse.json({
+      ...data,
+      cached: false,
+      cacheAge: 0
+    }, {
+      headers: {
+        'Cache-Control': 'public, max-age=300', // 5 minutes client-side cache
+      }
+    })
+
+  } catch (error: any) {
+    console.error('ShipHero product locations API error:', error)
+    return NextResponse.json(
+      { error: 'Internal server error', details: error.message },
+      { status: 500 }
+    )
+  }
+}
