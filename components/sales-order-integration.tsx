@@ -170,12 +170,12 @@ export function SalesOrderIntegration({ packedBoxes, shipheroConfig, customerAcc
       const subtotal = lineItems.reduce((sum, item) => sum + (item.price * item.quantity), 0)
       const totalPrice = subtotal // No tax or shipping for removal orders
       
-      console.log('[SALES ORDER] Creating consolidated order with', lineItems.length, 'unique SKUs')
+      console.log('[SALES ORDER] Creating removal order with', lineItems.length, 'unique SKUs')
       console.log('[SALES ORDER] Total items from', packedBoxes.length, 'boxes')
 
       // Create single consolidated sales order
       const orderId = await api.createSalesOrder({
-        orderNumber: `CONSOLIDATED-${Date.now()}`,
+        orderNumber: `REMOVAL-${Date.now()}`,
         customerEmail: formData.customerEmail,
         lineItems,
         shippingAddress: {
@@ -200,13 +200,13 @@ export function SalesOrderIntegration({ packedBoxes, shipheroConfig, customerAcc
       setCreatedOrders(prev => [
         ...prev,
         {
-          boxId: 'CONSOLIDATED',
+          boxId: 'REMOVAL',
           orderId,
           createdAt: new Date().toISOString(),
         }
       ])
 
-      setSuccess(`Successfully created consolidated sales order! Order ID: ${orderId} (${lineItems.length} unique SKUs from ${packedBoxes.length} boxes)`)
+      setSuccess(`Successfully created removal order! Order ID: ${orderId} (${lineItems.length} unique SKUs from ${packedBoxes.length} boxes)`)
       
       // Reset form
       setFormData(prev => ({
@@ -403,12 +403,12 @@ export function SalesOrderIntegration({ packedBoxes, shipheroConfig, customerAcc
               {isCreating ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Creating Consolidated Order...
+                  Creating Removal Order...
                 </>
               ) : (
                 <>
                   <Plus className="h-4 w-4 mr-2" />
-                  Create Consolidated Order ({packedBoxes.length} boxes)
+                  Create Removal Order ({packedBoxes.length} boxes)
                 </>
               )}
             </Button>
