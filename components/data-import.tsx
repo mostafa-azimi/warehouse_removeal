@@ -200,9 +200,16 @@ export function DataImport({ onDataImported, inventoryData }: DataImportProps) {
           const node = edge.node;
           const product = node.product;
           
+          // Add debug logging as instructed
+          console.log(`[TRANSFORM] Node locations:`, node.locations);
+          console.log(`[TRANSFORM] Inventory bin:`, node.inventory_bin);
+          console.log(`[TRANSFORM] On hand:`, node.on_hand);
+          
           // Handle locations if they exist
           if (node.locations?.edges?.length > 0) {
-            node.locations.edges.forEach((locationEdge: any) => {
+            console.log(`[TRANSFORM] Found ${node.locations.edges.length} location(s)`);
+            node.locations.edges.forEach((locationEdge: any, locIndex: number) => {
+              console.log(`[TRANSFORM] Location ${locIndex}:`, locationEdge.node);
               const location = locationEdge.node;
               transformedItems.push({
                 sku: product?.sku || 'N/A',
@@ -215,6 +222,7 @@ export function DataImport({ onDataImported, inventoryData }: DataImportProps) {
               });
             });
           } else {
+            console.log(`[TRANSFORM] No locations found, using inventory_bin`);
             // No specific locations, use warehouse product data
             transformedItems.push({
               sku: product?.sku || 'N/A',

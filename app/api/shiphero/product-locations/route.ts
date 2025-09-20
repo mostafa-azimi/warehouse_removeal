@@ -18,23 +18,33 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Customer account ID is required' }, { status: 400 })
     }
 
-    // Use this working query (as instructed)
+    // Updated GraphQL query to properly fetch location details
     const query = `
-      query {
-        warehouse_products {
+      query GetProductLocations($customer_account_id: String!) {
+        warehouse_products(customer_account_id: $customer_account_id) {
           request_id
           complexity
-          data(first: 10) {
+          data(first: 50) {
             edges {
               node {
                 id
-                account_id
                 on_hand
                 inventory_bin
                 product {
                   sku
                   name
-                  account_id
+                }
+                locations(first: 20) {
+                  edges {
+                    node {
+                      id
+                      name
+                      quantity
+                      pickable
+                      sellable
+                      warehouse_id
+                    }
+                  }
                 }
               }
             }
@@ -43,7 +53,11 @@ export async function POST(request: NextRequest) {
       }
     `;
 
-    const graphqlRequestBody = { query }
+    const variables = {
+      customer_account_id: customerAccountId
+    }
+    
+    const graphqlRequestBody = { query, variables }
     
     const response = await fetch('https://public-api.shiphero.com/graphql', {
       method: 'POST',
