@@ -290,7 +290,16 @@ export function DataImport({ onDataImported, inventoryData }: DataImportProps) {
         const qrContent = JSON.stringify({
           sku: item.sku,
           quantity: item.units,
+          pickable: item.pickable,
+          sellable: item.sellable,
+          location: item.location
         })
+
+        // Create status badges for the label
+        const pickableStatus = item.pickable === 'yes' ? '✓ Pickable' : '✗ Not Pickable'
+        const sellableStatus = item.sellable === 'yes' ? '✓ Sellable' : '✗ Not Sellable'
+        const pickableColor = item.pickable === 'yes' ? '#10b981' : '#ef4444'
+        const sellableColor = item.sellable === 'yes' ? '#10b981' : '#ef4444'
 
         labelsHtml += `
           <div class="label">
@@ -302,6 +311,10 @@ export function DataImport({ onDataImported, inventoryData }: DataImportProps) {
               <div><strong>SKU:</strong> ${item.sku}</div>
               <div><strong>Location:</strong> ${item.location}</div>
               <div><strong>Quantity:</strong> ${item.units}</div>
+              <div class="status-badges">
+                <span class="status-badge" style="color: ${pickableColor}; font-weight: bold;">${pickableStatus}</span>
+                <span class="status-badge" style="color: ${sellableColor}; font-weight: bold;">${sellableStatus}</span>
+              </div>
             </div>
           </div>
         `
@@ -352,6 +365,19 @@ export function DataImport({ onDataImported, inventoryData }: DataImportProps) {
                 margin-bottom: 0.1in;
                 word-wrap: break-word;
                 max-width: 3.6in;
+              }
+              .status-badges {
+                margin-top: 0.1in;
+                display: flex;
+                flex-direction: column;
+                gap: 2px;
+              }
+              .status-badge {
+                font-size: 12px;
+                font-weight: bold;
+                padding: 2px 4px;
+                border-radius: 3px;
+                background-color: rgba(0,0,0,0.05);
               }
               @media print {
                 body { margin: 0; padding: 0; }
