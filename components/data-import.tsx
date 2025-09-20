@@ -196,12 +196,12 @@ export function DataImport({ onDataImported, inventoryData }: DataImportProps) {
               item: productInfo?.name || 'Unknown Product',
               sku: productInfo?.sku || '',
               warehouse: product.warehouse?.profile || 'Unknown Warehouse',
-              location: location.name || product.inventory_bin || 'Unknown Location',
+              location: `Location-${location.id}` || product.inventory_bin || 'Unknown Location',
               type: 'product', // Default type
               units: location.quantity || product.on_hand || 0,
-              activeItem: (location.pickable && location.sellable) ? 'yes' : 'no',
-              pickable: location.pickable ? 'yes' : 'no',
-              sellable: location.sellable ? 'yes' : 'no',
+              activeItem: location.quantity > 0 ? 'yes' : 'no', // Use quantity as indicator
+              pickable: 'yes', // Default since it's in a location
+              sellable: 'yes', // Default since it's in a location
               creationDate: new Date().toISOString().split('T')[0] // Today's date
             })
           })

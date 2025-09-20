@@ -88,10 +88,7 @@ async function fetchProductLocations(accessToken: string, customerAccountId: str
                   edges {
                     node {
                       id
-                      name
                       quantity
-                      pickable
-                      sellable
                       warehouse_id
                     }
                   }
