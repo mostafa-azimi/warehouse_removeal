@@ -62,7 +62,7 @@ async function fetchProductLocations(accessToken: string, customerAccountId: str
 
     // Use the product locations query structure from the documentation
     const query = `
-      query GetProductLocationsByAccount($customer_account_id: String!, $first: Int) {
+      query GetProductLocationsByClient($customer_account_id: String!, $first: Int = 100) {
         warehouse_products(customer_account_id: $customer_account_id) {
           request_id
           complexity
@@ -73,20 +73,16 @@ async function fetchProductLocations(accessToken: string, customerAccountId: str
                 account_id
                 on_hand
                 inventory_bin
-                reserve_inventory
-                reorder_amount
-                reorder_level
-                custom
                 warehouse {
                   id
-                  profile
-                  dynamic_slotting
+                  account_id
                 }
                 product {
                   id
                   name
                   sku
                   barcode
+                  account_id
                 }
                 locations(first: 50) {
                   edges {
@@ -120,8 +116,7 @@ async function fetchProductLocations(accessToken: string, customerAccountId: str
     
     console.log('[PRODUCT LOCATIONS API] Detailed request info:', {
       customerAccountId,
-      originalAccountId: customerAccountId,
-      decodedCheck: customerAccountId ? atob(customerAccountId) : 'N/A',
+      accountIdType: 'Direct numeric string (3PL format)',
       variables,
       accessTokenLength: accessToken.length,
       accessTokenPrefix: accessToken.substring(0, 20)
@@ -161,7 +156,7 @@ async function fetchProductLocations(accessToken: string, customerAccountId: str
           details: errorDetails,
           requestInfo: {
             customerAccountId,
-            decodedAccountId: atob(customerAccountId),
+            accountIdFormat: 'Direct numeric string',
             queryUsed: 'warehouse_products'
           }
         },
@@ -186,7 +181,7 @@ async function fetchProductLocations(accessToken: string, customerAccountId: str
           details: data.errors,
           requestInfo: {
             customerAccountId,
-            decodedAccountId: atob(customerAccountId),
+            accountIdFormat: 'Direct numeric string',
             queryUsed: 'warehouse_products'
           }
         },

@@ -141,9 +141,9 @@ export function DataImport({ onDataImported, inventoryData }: DataImportProps) {
     setSuccess(false)
 
     try {
-      // Encode the numeric account ID to base64 format for ShipHero
-      const encodedAccountId = btoa(`Account:${accountId.trim()}`)
-      console.log(`[DATA-IMPORT] Converting account ID ${accountId} to encoded: ${encodedAccountId}`)
+      // Use the numeric account ID directly as a string (ShipHero API expects this format for 3PL queries)
+      const customerAccountId = accountId.trim()
+      console.log(`[DATA-IMPORT] Using customer account ID: ${customerAccountId}`)
 
       // Get saved ShipHero config
       const savedConfigStr = localStorage.getItem('shiphero-config')
@@ -168,7 +168,7 @@ export function DataImport({ onDataImported, inventoryData }: DataImportProps) {
         },
         body: JSON.stringify({
           accessToken,
-          customerAccountId: encodedAccountId
+          customerAccountId: customerAccountId
         })
       })
 
