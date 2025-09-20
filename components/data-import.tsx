@@ -207,24 +207,8 @@ export function DataImport({ onDataImported, inventoryData }: DataImportProps) {
           product.locations.edges.forEach((locationEdge: any, locationIndex: number) => {
             const location = locationEdge.node
             
-            // Decode location ID to get bin name
-            let binLocation = 'Unknown Bin'
-            if (location.id) {
-              try {
-                // Try to decode location ID if it's base64 encoded
-                const decodedLocation = atob(location.id)
-                // Extract meaningful part (might be like "Location:123" or similar)
-                const locationParts = decodedLocation.split(':')
-                if (locationParts.length > 1) {
-                  binLocation = `Bin-${locationParts[1]}`
-                } else {
-                  binLocation = `Bin-${location.id.substring(0, 8)}`
-                }
-              } catch (e) {
-                // If not base64, use the ID directly (truncated)
-                binLocation = `Bin-${location.id.substring(0, 8)}`
-              }
-            }
+            // Use the actual location name (like "PS01-01", "A02-02-A-03", etc.)
+            const binLocation = location.name || `Bin-${location.id?.substring(0, 8) || 'Unknown'}`
             
             // Only add locations with quantity > 0
             if (location.quantity > 0) {

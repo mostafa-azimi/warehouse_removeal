@@ -87,6 +87,7 @@ async function fetchProductLocations(accessToken: string, customerAccountId: str
                   edges {
                     node {
                       id
+                      name
                       quantity
                       warehouse_id
                     }
