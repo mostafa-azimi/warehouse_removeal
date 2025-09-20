@@ -18,7 +18,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Order data is required' }, { status: 400 })
     }
 
-    // FIXED: Use customer_account_id for 3PL operations
     const mutation = `
       mutation {
         order_create(
@@ -59,15 +58,15 @@ export async function POST(request: NextRequest) {
               country_code: "US"
               email: "${orderData.customerEmail}"
             }
-              line_items: [
-                ${orderData.lineItems.map((item: any, index: number) => `{
-                  sku: "${item.sku}"
-                  partner_line_item_id: "${Date.now()}-${index}"
-                  quantity: ${item.quantity}
-                  price: "1.00"
-                  product_name: "${item.productName}"
-                  fulfillment_status: "pending"
-                }`).join(',')}
+            line_items: [
+              ${orderData.lineItems.map((item: any, index: number) => `{
+                sku: "${item.sku}"
+                partner_line_item_id: "${orderData.orderNumber}-${index}"
+                quantity: ${item.quantity}
+                price: "1.00"
+                product_name: "${item.productName}"
+                fulfillment_status: "pending"
+              }`).join(',')}
             ]
           }
         ) {
