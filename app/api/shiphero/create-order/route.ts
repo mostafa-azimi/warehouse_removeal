@@ -29,20 +29,6 @@ export async function POST(request: NextRequest) {
             order_number
             fulfillment_status
             account_id
-            line_items {
-              edges {
-                node {
-                  id
-                  sku
-                  quantity
-                  product_name
-                }
-              }
-            }
-          }
-          user_errors {
-            field
-            message
           }
         }
       }
@@ -100,6 +86,7 @@ export async function POST(request: NextRequest) {
       },
     };
 
+    console.log('[CREATE ORDER API] Customer account ID received:', orderData.customerAccountId)
     console.log('[CREATE ORDER API] Order creation variables:', JSON.stringify(variables, null, 2))
 
     const response = await fetch('https://public-api.shiphero.com/graphql', {
@@ -133,11 +120,11 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check for user_errors in the response
-    if (data.data?.order_create?.user_errors && data.data.order_create.user_errors.length > 0) {
-      console.log('[CREATE ORDER API] User errors found:', data.data.order_create.user_errors)
+    // Check if order creation was successful
+    if (!data.data?.order_create?.order) {
+      console.log('[CREATE ORDER API] No order returned in response')
       return NextResponse.json(
-        { error: 'Order creation failed', details: data.data.order_create.user_errors },
+        { error: 'Order creation failed - no order returned' },
         { status: 400 }
       )
     }
