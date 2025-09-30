@@ -25,6 +25,12 @@ export function DataImport({ onDataImported, inventoryData }: DataImportProps) {
   // 3PL API Import state
   const [accountId, setAccountId] = useState("")
   const [isApiLoading, setIsApiLoading] = useState(false)
+  
+  // SKU-filtered CSV import state
+  const [isFilteredLoading, setIsFilteredLoading] = useState(false)
+  const [skuQuantityMap, setSkuQuantityMap] = useState<Map<string, number>>(new Map())
+  const [missingSKUs, setMissingSKUs] = useState<string[]>([])
+  const [insufficientInventory, setInsufficientInventory] = useState<Array<{sku: string, requested: number, available: number}>>([])
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -127,6 +133,188 @@ export function DataImport({ onDataImported, inventoryData }: DataImportProps) {
       console.error("Data loading error:", err)
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const handleFilteredCSVImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    setIsFilteredLoading(true)
+    setError(null)
+    setSuccess(false)
+    setMissingSKUs([])
+    setInsufficientInventory([])
+
+    try {
+      // Parse the CSV to get SKU and Quantity columns
+      const text = await file.text()
+      const lines = text.split("\n")
+      const headers = lines[0].split(",").map((h) => h.trim().replace(/"/g, "").toLowerCase())
+
+      console.log("[FILTERED CSV] Headers:", headers)
+
+      const skuIndex = headers.findIndex(h => h.includes('sku'))
+      const quantityIndex = headers.findIndex(h => h.includes('quantity') || h.includes('qty'))
+
+      if (skuIndex === -1 || quantityIndex === -1) {
+        setError("CSV must have both 'SKU' and 'Quantity' columns")
+        return
+      }
+
+      const skuQuantities = new Map<string, number>()
+
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim()
+        if (!line) continue
+
+        const values = line.split(",").map((v) => v.trim().replace(/"/g, ""))
+        const sku = values[skuIndex]
+        const quantity = Number.parseInt(values[quantityIndex]) || 0
+
+        if (sku && quantity > 0) {
+          skuQuantities.set(sku, quantity)
+        }
+      }
+
+      console.log(`[FILTERED CSV] Parsed ${skuQuantities.size} SKUs from CSV`)
+      setSkuQuantityMap(skuQuantities)
+
+      // Get saved ShipHero config
+      const savedConfigStr = localStorage.getItem('shiphero-config')
+      if (!savedConfigStr) {
+        setError("No ShipHero configuration found. Please configure your API tokens first.")
+        return
+      }
+
+      const savedConfig = JSON.parse(savedConfigStr)
+      const accessToken = savedConfig.accessToken
+      const customerAccountId = accountId.trim()
+
+      if (!accessToken) {
+        setError("No access token found. Please generate an access token first.")
+        return
+      }
+
+      if (!customerAccountId) {
+        setError("Please enter a customer account ID first.")
+        return
+      }
+
+      console.log('[FILTERED CSV] Querying ShipHero for specific SKUs...')
+      
+      // Query ShipHero for each SKU to get location data
+      const response = await fetch('/api/shiphero/product-locations', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          accessToken,
+          customerAccountId: customerAccountId
+        })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || `HTTP ${response.status}`)
+      }
+
+      const apiData = await response.json()
+      const productNodes = apiData?.data?.warehouse_products?.data?.edges || []
+
+      console.log(`[FILTERED CSV] Received ${productNodes.length} products from ShipHero`)
+
+      // Filter to only SKUs that are in our CSV
+      const csvSKUs = Array.from(skuQuantities.keys())
+      const foundSKUs = new Set<string>()
+      const transformedData: InventoryItem[] = []
+      const missing: string[] = []
+      const insufficient: Array<{sku: string, requested: number, available: number}> = []
+
+      productNodes.forEach((edge: any) => {
+        const product = edge.node
+        const productInfo = product.product
+        const sku = productInfo?.sku
+
+        // Only process if this SKU is in our CSV
+        if (sku && skuQuantities.has(sku)) {
+          foundSKUs.add(sku)
+          const requestedQty = skuQuantities.get(sku)!
+          const availableQty = product.on_hand || 0
+
+          // Validate quantity
+          if (availableQty < requestedQty) {
+            insufficient.push({
+              sku: sku,
+              requested: requestedQty,
+              available: availableQty
+            })
+          }
+
+          // Process all bin locations for this SKU
+          if (product.locations?.edges?.length > 0) {
+            product.locations.edges.forEach((locationEdge: any) => {
+              const locationNode = locationEdge.node
+              const location = locationNode.location
+
+              if (locationNode.quantity > 0) {
+                transformedData.push({
+                  item: productInfo?.name || 'Unknown Product',
+                  sku: sku,
+                  warehouse: 'Warehouse',
+                  location: location?.name || 'Unknown Location',
+                  type: 'product',
+                  units: locationNode.quantity,
+                  activeItem: 'yes',
+                  pickable: location?.pickable ? 'yes' : 'no',
+                  sellable: location?.sellable ? 'yes' : 'no',
+                  creationDate: new Date().toISOString().split('T')[0]
+                })
+              }
+            })
+          } else if (product.inventory_bin) {
+            transformedData.push({
+              item: productInfo?.name || 'Unknown Product',
+              sku: sku,
+              warehouse: 'Warehouse',
+              location: product.inventory_bin,
+              type: 'product',
+              units: product.on_hand || 0,
+              activeItem: 'yes',
+              pickable: 'yes',
+              sellable: 'yes',
+              creationDate: new Date().toISOString().split('T')[0]
+            })
+          }
+        }
+      })
+
+      // Check for missing SKUs
+      csvSKUs.forEach(sku => {
+        if (!foundSKUs.has(sku)) {
+          missing.push(sku)
+        }
+      })
+
+      setMissingSKUs(missing)
+      setInsufficientInventory(insufficient)
+
+      // Sort by location
+      transformedData.sort((a, b) => a.location.localeCompare(b.location, undefined, { numeric: true, sensitivity: "base" }))
+
+      console.log(`[FILTERED CSV] Transformed ${transformedData.length} location entries`)
+      console.log(`[FILTERED CSV] Missing SKUs: ${missing.length}`)
+      console.log(`[FILTERED CSV] Insufficient inventory: ${insufficient.length}`)
+
+      onDataImported(transformedData, customerAccountId)
+      setSuccess(true)
+
+    } catch (err) {
+      console.error('[FILTERED CSV] Import error:', err)
+      setError(`Failed to import filtered data: ${err instanceof Error ? err.message : 'Unknown error occurred'}`)
+    } finally {
+      setIsFilteredLoading(false)
     }
   }
 
@@ -465,6 +653,91 @@ export function DataImport({ onDataImported, inventoryData }: DataImportProps) {
                 This may take a few moments depending on inventory size
               </div>
             </div>
+          )}
+        </div>
+      </div>
+
+      {/* Filtered CSV Upload Section - Target specific SKUs */}
+      <div className="border-4 border-dashed border-green-400 rounded-xl p-8 bg-gradient-to-br from-green-50 to-emerald-50 shadow-lg">
+        <div className="text-center space-y-6">
+          <div className="bg-green-100 rounded-full w-20 h-20 mx-auto flex items-center justify-center">
+            <svg className="h-10 w-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+            </svg>
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold text-green-900 mb-2">Upload SKU List & Fetch Locations</h2>
+            <p className="text-base text-green-700 max-w-md mx-auto">
+              Upload a CSV with specific SKUs and quantities, then fetch their exact bin locations from ShipHero
+            </p>
+          </div>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="account-id-filtered" className="block text-sm font-medium text-green-700 mb-2">
+                Customer Account ID *
+              </Label>
+              <Input
+                id="account-id-filtered"
+                type="number"
+                value={accountId}
+                onChange={(e) => setAccountId(e.target.value)}
+                placeholder="e.g., 90985"
+                disabled={isFilteredLoading}
+                className="max-w-lg mx-auto h-12 text-base border-2 border-green-300 focus:border-green-500 bg-white"
+              />
+            </div>
+            <div>
+              <Label htmlFor="filtered-csv-file" className="sr-only">
+                Upload SKU List CSV
+              </Label>
+              <Input
+                id="filtered-csv-file"
+                type="file"
+                accept=".csv"
+                onChange={handleFilteredCSVImport}
+                disabled={isFilteredLoading || !accountId.trim()}
+                className="max-w-lg mx-auto h-12 text-base border-2 border-green-300 focus:border-green-500 bg-white"
+              />
+              <p className="text-sm text-green-600 mt-2">
+                CSV must have "SKU" and "Quantity" columns. Only listed SKUs will be fetched with their bin locations.
+              </p>
+            </div>
+          </div>
+          {isFilteredLoading && (
+            <div className="bg-white rounded-lg p-4 border border-green-200">
+              <p className="text-base text-green-600 font-medium">Processing CSV and querying ShipHero...</p>
+            </div>
+          )}
+          
+          {/* Validation Warnings */}
+          {missingSKUs.length > 0 && (
+            <Alert className="bg-yellow-50 border-yellow-300">
+              <AlertCircle className="h-4 w-4 text-yellow-600" />
+              <AlertDescription className="text-yellow-800">
+                <strong>⚠️ {missingSKUs.length} SKU(s) not found in ShipHero:</strong>
+                <div className="mt-2 text-sm font-mono">
+                  {missingSKUs.slice(0, 5).join(", ")}
+                  {missingSKUs.length > 5 && ` ... and ${missingSKUs.length - 5} more`}
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
+          
+          {insufficientInventory.length > 0 && (
+            <Alert className="bg-orange-50 border-orange-300">
+              <AlertCircle className="h-4 w-4 text-orange-600" />
+              <AlertDescription className="text-orange-800">
+                <strong>⚠️ {insufficientInventory.length} SKU(s) have insufficient inventory:</strong>
+                <div className="mt-2 text-sm space-y-1">
+                  {insufficientInventory.slice(0, 3).map((item, idx) => (
+                    <div key={idx} className="font-mono">
+                      {item.sku}: Need {item.requested}, Available {item.available}
+                    </div>
+                  ))}
+                  {insufficientInventory.length > 3 && <div>... and {insufficientInventory.length - 3} more</div>}
+                </div>
+              </AlertDescription>
+            </Alert>
           )}
         </div>
       </div>
