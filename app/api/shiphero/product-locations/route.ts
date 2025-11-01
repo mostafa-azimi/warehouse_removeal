@@ -132,7 +132,7 @@ export async function POST(request: NextRequest) {
     console.log(`Total pages fetched: ${pageCount}`)
     console.log(`Total products: ${allProducts.length}`)
 
-    // Return data in the same format as before
+    // Return data in the same format as before, with pagination metadata
     const finalData = {
       data: {
         warehouse_products: {
@@ -140,8 +140,17 @@ export async function POST(request: NextRequest) {
             edges: allProducts
           }
         }
+      },
+      _pagination: {
+        totalPages: pageCount,
+        totalProducts: allProducts.length,
+        expectedProducts: 426,
+        completedSuccessfully: pageCount < MAX_PAGES || !hasNextPage,
+        stoppedEarly: hasNextPage && pageCount >= MAX_PAGES
       }
     }
+    
+    console.log('📊 Returning final data with', allProducts.length, 'products')
     
     return NextResponse.json(finalData);
     

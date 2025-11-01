@@ -385,7 +385,26 @@ export function DataImport({ onDataImported, inventoryData }: DataImportProps) {
       }
 
       const apiData = await response.json()
-      console.log('[DATA-IMPORT] API response received:', apiData)
+      console.log('📊 [DATA-IMPORT] API response received')
+      console.log('📊 [DATA-IMPORT] Total products in response:', apiData?.data?.warehouse_products?.data?.edges?.length || 0)
+      
+      // Log pagination metadata if available
+      if (apiData._pagination) {
+        console.log('🔄 [PAGINATION] Total Pages Fetched:', apiData._pagination.totalPages)
+        console.log('🔄 [PAGINATION] Total Products:', apiData._pagination.totalProducts)
+        console.log('🔄 [PAGINATION] Expected Products:', apiData._pagination.expectedProducts)
+        console.log('🔄 [PAGINATION] Completed Successfully:', apiData._pagination.completedSuccessfully)
+        
+        if (apiData._pagination.stoppedEarly) {
+          console.warn('⚠️ [PAGINATION] Stopped early - may not have all products!')
+        }
+        
+        if (apiData._pagination.totalProducts < apiData._pagination.expectedProducts) {
+          console.warn(`⚠️ [PAGINATION] Missing ${apiData._pagination.expectedProducts - apiData._pagination.totalProducts} products!`)
+        }
+      }
+      
+      console.log('📊 [DATA-IMPORT] Full response structure:', apiData)
 
       // Transform ShipHero API response using the exact function as instructed
       const transformApiData = (apiResponse: any) => {
