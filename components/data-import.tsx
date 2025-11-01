@@ -2,7 +2,8 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
+import * as React from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -31,7 +32,10 @@ export function DataImport({ onDataImported, inventoryData }: DataImportProps) {
   const [skuQuantityMap, setSkuQuantityMap] = useState<Map<string, number>>(new Map())
   const [missingSKUs, setMissingSKUs] = useState<string[]>([])
   const [insufficientInventory, setInsufficientInventory] = useState<Array<{sku: string, requested: number, available: number}>>([])
-
+  
+  // Sorting state
+  const [sortColumn, setSortColumn] = useState<'item' | 'sku' | 'location' | 'units' | 'pickable' | 'sellable' | null>(null)
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file) return
@@ -252,40 +256,52 @@ export function DataImport({ onDataImported, inventoryData }: DataImportProps) {
             })
           }
 
-          // Process all bin locations for this SKU
+          // Process all bin locations for this SKU - ONLY WITH QUANTITY > 0
           if (product.locations?.edges?.length > 0) {
             product.locations.edges.forEach((locationEdge: any) => {
               const locationNode = locationEdge.node
               const location = locationNode.location
+              const quantity = locationNode.quantity || 0
 
-              if (locationNode.quantity > 0) {
+              // STRICT FILTERING: Only include if quantity is explicitly greater than 0
+              if (quantity > 0 && Number.isFinite(quantity)) {
+                console.log(`[FILTERED CSV] Adding location for ${sku}: ${location?.name} with ${quantity} units`)
                 transformedData.push({
                   item: productInfo?.name || 'Unknown Product',
                   sku: sku,
                   warehouse: 'Warehouse',
                   location: location?.name || 'Unknown Location',
                   type: 'product',
-                  units: locationNode.quantity,
+                  units: quantity,
                   activeItem: 'yes',
                   pickable: location?.pickable ? 'yes' : 'no',
                   sellable: location?.sellable ? 'yes' : 'no',
                   creationDate: new Date().toISOString().split('T')[0]
                 })
+              } else {
+                console.log(`[FILTERED CSV] Skipping location for ${sku}: ${location?.name} - zero quantity`)
               }
             })
-          } else if (product.inventory_bin) {
-            transformedData.push({
-              item: productInfo?.name || 'Unknown Product',
-              sku: sku,
-              warehouse: 'Warehouse',
-              location: product.inventory_bin,
-              type: 'product',
-              units: product.on_hand || 0,
-              activeItem: 'yes',
-              pickable: 'yes',
-              sellable: 'yes',
-              creationDate: new Date().toISOString().split('T')[0]
-            })
+          } else if (product.inventory_bin && product.on_hand > 0) {
+            // STRICT FILTERING: Only include if on_hand is explicitly greater than 0
+            const onHand = product.on_hand || 0
+            if (onHand > 0 && Number.isFinite(onHand)) {
+              console.log(`[FILTERED CSV] Adding primary bin for ${sku}: ${product.inventory_bin} with ${onHand} units`)
+              transformedData.push({
+                item: productInfo?.name || 'Unknown Product',
+                sku: sku,
+                warehouse: 'Warehouse',
+                location: product.inventory_bin,
+                type: 'product',
+                units: onHand,
+                activeItem: 'yes',
+                pickable: 'yes',
+                sellable: 'yes',
+                creationDate: new Date().toISOString().split('T')[0]
+              })
+            } else {
+              console.log(`[FILTERED CSV] Skipping primary bin for ${sku}: ${product.inventory_bin} - zero quantity`)
+            }
           }
         }
       })
@@ -399,30 +415,43 @@ export function DataImport({ onDataImported, inventoryData }: DataImportProps) {
             node.locations.edges.forEach((locationEdge: any, locIndex: number) => {
               console.log(`[TRANSFORM] Location ${locIndex}:`, locationEdge.node);
               const locationNode = locationEdge.node;
-              const location = locationNode.location; // ← This is the key change!
+              const location = locationNode.location;
+              const quantity = locationNode?.quantity || 0;
               
+              // STRICT: Only add locations with quantity > 0
+              if (quantity > 0 && Number.isFinite(quantity)) {
+                transformedItems.push({
+                  sku: product?.sku || 'N/A',
+                  productName: product?.name || 'N/A',
+                  binLocation: location?.name || node.inventory_bin || 'N/A',
+                  quantity: quantity,
+                  sellable: location?.sellable ?? true,
+                  pickable: location?.pickable ?? true,
+                  warehouseId: 'N/A'
+                });
+              } else {
+                console.log(`[TRANSFORM] Skipping location ${locIndex} - zero or invalid quantity:`, quantity);
+              }
+            });
+          } else {
+            console.log(`[TRANSFORM] No locations found, checking inventory_bin`);
+            const onHand = node.on_hand || 0;
+            
+            // STRICT: Only add if on_hand is explicitly greater than 0
+            if (onHand > 0 && Number.isFinite(onHand) && node.inventory_bin) {
+              console.log(`[TRANSFORM] Adding inventory_bin with ${onHand} units`);
               transformedItems.push({
                 sku: product?.sku || 'N/A',
                 productName: product?.name || 'N/A',
-                binLocation: location?.name || node.inventory_bin || 'N/A', // ← Now using location.name
-                quantity: locationNode?.quantity || 0, // ← quantity is on the locationNode
-                sellable: location?.sellable ?? true,
-                pickable: location?.pickable ?? true,
+                binLocation: node.inventory_bin || 'N/A',
+                quantity: onHand,
+                sellable: true,
+                pickable: true,
                 warehouseId: 'N/A'
               });
-            });
-          } else {
-            console.log(`[TRANSFORM] No locations found, using inventory_bin`);
-            // No specific locations, use warehouse product data
-            transformedItems.push({
-              sku: product?.sku || 'N/A',
-              productName: product?.name || 'N/A',
-              binLocation: node.inventory_bin || 'N/A',
-              quantity: node.on_hand || 0,
-              sellable: true, // Default assumption
-              pickable: true, // Default assumption
-              warehouseId: 'N/A'
-            });
+            } else {
+              console.log(`[TRANSFORM] Skipping inventory_bin - zero or invalid quantity:`, onHand);
+            }
           }
         });
         
@@ -433,18 +462,23 @@ export function DataImport({ onDataImported, inventoryData }: DataImportProps) {
       const rawTransformedData = transformApiData(apiData)
       
       // Convert to InventoryItem format for the existing UI
-      const transformedData: InventoryItem[] = rawTransformedData.map((item: any) => ({
-        item: item.productName,
-        sku: item.sku,
-        warehouse: 'Warehouse', // Default since we're focusing on locations
-        location: item.binLocation,
-        type: 'product',
-        units: item.quantity,
-        activeItem: (item.pickable && item.sellable) ? 'yes' : 'no',
-        pickable: item.pickable ? 'yes' : 'no',
-        sellable: item.sellable ? 'yes' : 'no',
-        creationDate: new Date().toISOString().split('T')[0]
-      }))
+      // FINAL FILTER: Remove any items with zero or invalid quantities
+      const transformedData: InventoryItem[] = rawTransformedData
+        .filter((item: any) => item.quantity > 0 && Number.isFinite(item.quantity))
+        .map((item: any) => ({
+          item: item.productName,
+          sku: item.sku,
+          warehouse: 'Warehouse', // Default since we're focusing on locations
+          location: item.binLocation,
+          type: 'product',
+          units: item.quantity,
+          activeItem: (item.pickable && item.sellable) ? 'yes' : 'no',
+          pickable: item.pickable ? 'yes' : 'no',
+          sellable: item.sellable ? 'yes' : 'no',
+          creationDate: new Date().toISOString().split('T')[0]
+        }))
+      
+      console.log(`[DATA-IMPORT] Final filtered count: ${transformedData.length} items (all with quantity > 0)`)
 
       // Sort by location like the CSV import does
       transformedData.sort((a, b) => a.location.localeCompare(b.location, undefined, { numeric: true, sensitivity: "base" }))
@@ -594,9 +628,49 @@ export function DataImport({ onDataImported, inventoryData }: DataImportProps) {
     }
   }
 
-  const sortedDisplayData = [...inventoryData].sort((a, b) =>
-    a.location.localeCompare(b.location, undefined, { numeric: true, sensitivity: "base" }),
-  )
+  const handleSort = (column: 'item' | 'sku' | 'location' | 'units' | 'pickable' | 'sellable') => {
+    if (sortColumn === column) {
+      // Toggle direction if same column
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
+    } else {
+      // New column, default to ascending
+      setSortColumn(column)
+      setSortDirection('asc')
+    }
+  }
+
+  const sortedDisplayData = React.useMemo(() => {
+    let sorted = [...inventoryData]
+    
+    if (sortColumn) {
+      sorted.sort((a, b) => {
+        let aVal: any = a[sortColumn]
+        let bVal: any = b[sortColumn]
+        
+        // Handle numeric sorting for units
+        if (sortColumn === 'units') {
+          aVal = Number(aVal)
+          bVal = Number(bVal)
+          return sortDirection === 'asc' ? aVal - bVal : bVal - aVal
+        }
+        
+        // String sorting for other columns
+        const comparison = String(aVal).localeCompare(String(bVal), undefined, { 
+          numeric: true, 
+          sensitivity: 'base' 
+        })
+        
+        return sortDirection === 'asc' ? comparison : -comparison
+      })
+    } else {
+      // Default sort by location
+      sorted.sort((a, b) =>
+        a.location.localeCompare(b.location, undefined, { numeric: true, sensitivity: "base" })
+      )
+    }
+    
+    return sorted
+  }, [inventoryData, sortColumn, sortDirection])
 
   return (
     <div className="space-y-6">
@@ -816,21 +890,81 @@ export function DataImport({ onDataImported, inventoryData }: DataImportProps) {
             </Button>
           </div>
 
-          <div className="rounded-md border max-h-96 overflow-auto">
+          <div className="rounded-md border max-h-[600px] overflow-auto">
             <Table>
-              <TableHeader>
+              <TableHeader className="sticky top-0 bg-gray-50 z-10">
                 <TableRow>
-                  <TableHead>Item</TableHead>
-                  <TableHead>SKU</TableHead>
-                  <TableHead>Bin Location</TableHead>
-                  <TableHead>Quantity</TableHead>
-                  <TableHead>Pickable</TableHead>
-                  <TableHead>Sellable</TableHead>
+                  <TableHead 
+                    className="cursor-pointer hover:bg-gray-100 select-none"
+                    onClick={() => handleSort('item')}
+                  >
+                    <div className="flex items-center gap-2">
+                      Item
+                      {sortColumn === 'item' && (
+                        <span>{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                      )}
+                    </div>
+                  </TableHead>
+                  <TableHead 
+                    className="cursor-pointer hover:bg-gray-100 select-none"
+                    onClick={() => handleSort('sku')}
+                  >
+                    <div className="flex items-center gap-2">
+                      SKU
+                      {sortColumn === 'sku' && (
+                        <span>{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                      )}
+                    </div>
+                  </TableHead>
+                  <TableHead 
+                    className="cursor-pointer hover:bg-gray-100 select-none"
+                    onClick={() => handleSort('location')}
+                  >
+                    <div className="flex items-center gap-2">
+                      Bin Location
+                      {sortColumn === 'location' && (
+                        <span>{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                      )}
+                    </div>
+                  </TableHead>
+                  <TableHead 
+                    className="cursor-pointer hover:bg-gray-100 select-none"
+                    onClick={() => handleSort('units')}
+                  >
+                    <div className="flex items-center gap-2">
+                      Quantity
+                      {sortColumn === 'units' && (
+                        <span>{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                      )}
+                    </div>
+                  </TableHead>
+                  <TableHead 
+                    className="cursor-pointer hover:bg-gray-100 select-none"
+                    onClick={() => handleSort('pickable')}
+                  >
+                    <div className="flex items-center gap-2">
+                      Pickable
+                      {sortColumn === 'pickable' && (
+                        <span>{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                      )}
+                    </div>
+                  </TableHead>
+                  <TableHead 
+                    className="cursor-pointer hover:bg-gray-100 select-none"
+                    onClick={() => handleSort('sellable')}
+                  >
+                    <div className="flex items-center gap-2">
+                      Sellable
+                      {sortColumn === 'sellable' && (
+                        <span>{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                      )}
+                    </div>
+                  </TableHead>
                   <TableHead>Status</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {sortedDisplayData.slice(0, 10).map((item, index) => (
+                {sortedDisplayData.map((item, index) => (
                   <TableRow key={index}>
                     <TableCell className="font-medium">{item.item}</TableCell>
                     <TableCell className="font-mono">{item.sku}</TableCell>
@@ -868,9 +1002,9 @@ export function DataImport({ onDataImported, inventoryData }: DataImportProps) {
               </TableBody>
             </Table>
           </div>
-          {inventoryData.length > 10 && (
-            <p className="text-sm text-muted-foreground">Showing 10 of {inventoryData.length} items</p>
-          )}
+          <p className="text-sm text-muted-foreground">
+            Showing all {inventoryData.length} items • Click column headers to sort
+          </p>
         </div>
       )}
     </div>
