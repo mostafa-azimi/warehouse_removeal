@@ -22,9 +22,10 @@ export async function POST(request: NextRequest) {
     let hasNextPage = true
     let cursor: string | null = null
     let pageCount = 0
-    const MAX_PAGES = 20 // Safety limit to prevent infinite loops
+    const MAX_PAGES = 50 // Increased to handle 426 products (need ~9 pages at 50 per page)
 
-    console.log('Starting pagination to fetch all products...')
+    console.log('Starting pagination to fetch ALL products (up to 50 pages)...')
+    console.log('Target: Fetch all 426+ products from ShipHero')
 
     while (hasNextPage && pageCount < MAX_PAGES) {
       pageCount++
@@ -120,9 +121,10 @@ export async function POST(request: NextRequest) {
       
       console.log(`Total products so far: ${allProducts.length}, Has next page: ${hasNextPage}`)
       
-      // Small delay between requests to avoid overwhelming the API
+      // Delay between requests to avoid overwhelming the API and respect credit limits
       if (hasNextPage && pageCount < MAX_PAGES) {
-        await new Promise(resolve => setTimeout(resolve, 100))
+        console.log(`Waiting 500ms before next page to respect rate limits...`)
+        await new Promise(resolve => setTimeout(resolve, 500))
       }
     }
 
