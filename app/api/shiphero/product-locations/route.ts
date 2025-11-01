@@ -17,16 +17,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Customer account ID is required' }, { status: 400 })
     }
 
-    // Fetch ALL products with pagination
-    let allProducts: any[] = []
+    console.log('=== TWO-STEP QUERY APPROACH ===')
+    console.log('Step 1: Get all SKUs for customer account')
+    console.log('Step 2: Query locations for each SKU individually')
+    
+    // STEP 1: Get all SKUs for this customer account
+    console.log('📦 STEP 1: Fetching SKU list...')
+    
+    let allSkus: string[] = []
     let hasNextPage = true
     let cursor: string | null = null
     let pageCount = 0
-    const MAX_PAGES = 50 // Increased to handle all products (need ~4 pages at 50 per page for 165 products)
-
-    console.log('Starting pagination to fetch ALL products (up to 50 pages)...')
-    console.log('Strategy: 50 products/page using inventory_bins (simpler query, lower complexity)')
-    console.log('Target: All SKU/bin combinations with proper customer account filtering')
+    const MAX_PAGES = 50
 
     while (hasNextPage && pageCount < MAX_PAGES) {
       pageCount++
