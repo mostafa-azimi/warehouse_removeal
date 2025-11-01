@@ -17,22 +17,24 @@ export async function POST(request: NextRequest) {
 
     const allProducts: any[] = []
     
-    // Query SKUs in batches of 10 to avoid overwhelming the API
-    const BATCH_SIZE = 10
-    const DELAY_BETWEEN_BATCHES = 2000 // 2 seconds
+    // Query SKUs SEQUENTIALLY with delays to respect credit limits
+    // Each query costs ~511 credits
+    // Credits regenerate at 60/second
+    // Need 511/60 = 8.5 seconds to regenerate enough for one query
+    const DELAY_BETWEEN_QUERIES = 10000 // 10 seconds to be safe
     
-    console.log(`Processing ${skus.length} SKUs in batches of ${BATCH_SIZE}`)
+    console.log(`Processing ${skus.length} SKUs SEQUENTIALLY`)
+    console.log(`Delay: ${DELAY_BETWEEN_QUERIES/1000} seconds between queries`)
+    console.log(`Estimated time: ~${Math.round(skus.length * DELAY_BETWEEN_QUERIES / 60000)} minutes`)
     
-    for (let i = 0; i < skus.length; i += BATCH_SIZE) {
-      const batch = skus.slice(i, i + BATCH_SIZE)
-      const batchNumber = Math.floor(i / BATCH_SIZE) + 1
-      const totalBatches = Math.ceil(skus.length / BATCH_SIZE)
+    for (let i = 0; i < skus.length; i++) {
+      const sku = skus[i]
+      const skuNumber = i + 1
       
-      console.log(`\n📦 Batch ${batchNumber}/${totalBatches}: Fetching ${batch.length} SKUs`)
-      console.log(`   SKUs: ${batch.join(', ')}`)
+      console.log(`\n📦 SKU ${skuNumber}/${skus.length}: ${sku}`)
       
-      // Query all SKUs in this batch in parallel
-      const batchPromises = batch.map(async (sku) => {
+      // Query this single SKU
+      const result = await (async () => {
         const query = `
           query GetSKULocations($customer_account_id: String!, $sku: String!) {
             warehouse_products(customer_account_id: $customer_account_id, sku: $sku) {
@@ -74,59 +76,52 @@ export async function POST(request: NextRequest) {
           sku: sku
         }
 
-        try {
-          const response = await fetch('https://public-api.shiphero.com/graphql', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${accessToken}`
-            },
-            body: JSON.stringify({ query, variables })
-          })
+      try {
+        const response = await fetch('https://public-api.shiphero.com/graphql', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${accessToken}`
+          },
+          body: JSON.stringify({ query, variables })
+        })
 
-          if (!response.ok) {
-            console.error(`❌ SKU ${sku}: HTTP ${response.status}`)
-            return null
-          }
-
-          const data = await response.json()
-          
-          if (data.errors) {
-            console.error(`❌ SKU ${sku}: GraphQL error:`, data.errors[0]?.message)
-            return null
-          }
-
-          const edges = data?.data?.warehouse_products?.data?.edges || []
-          
-          if (edges.length === 0) {
-            console.warn(`⚠️ SKU ${sku}: Not found for account ${customerAccountId}`)
-            return null
-          }
-          
-          console.log(`✅ SKU ${sku}: Found with ${edges[0]?.node?.on_hand || 0} units`)
-          return edges[0] // Return the product node
-        } catch (error: any) {
-          console.error(`❌ SKU ${sku}: Error -`, error.message)
+        if (!response.ok) {
+          console.error(`❌ HTTP ${response.status}`)
           return null
         }
-      })
 
-      // Wait for all SKUs in this batch to complete
-      const batchResults = await Promise.all(batchPromises)
-      
-      // Add successful results to allProducts
-      batchResults.forEach((result, idx) => {
-        if (result) {
-          allProducts.push(result)
+        const data = await response.json()
+        
+        if (data.errors) {
+          console.error(`❌ GraphQL error:`, data.errors[0]?.message)
+          return null
         }
-      })
+
+        const edges = data?.data?.warehouse_products?.data?.edges || []
+        
+        if (edges.length === 0) {
+          console.warn(`⚠️ Not found for account ${customerAccountId}`)
+          return null
+        }
+        
+        console.log(`✅ Found with ${edges[0]?.node?.on_hand || 0} units`)
+        return edges[0] // Return the product node
+      } catch (error: any) {
+        console.error(`❌ Error:`, error.message)
+        return null
+      }
+      })()
       
-      console.log(`✅ Batch ${batchNumber} complete: ${batchResults.filter(r => r).length}/${batch.length} SKUs found`)
+      if (result) {
+        allProducts.push(result)
+      }
       
-      // Delay before next batch (except for the last batch)
-      if (i + BATCH_SIZE < skus.length) {
-        console.log(`⏳ Waiting ${DELAY_BETWEEN_BATCHES}ms before next batch...`)
-        await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_BATCHES))
+      // Delay before next SKU (except for the last one)
+      if (i < skus.length - 1) {
+        const waitSeconds = DELAY_BETWEEN_QUERIES / 1000
+        console.log(`⏳ Waiting ${waitSeconds}s for credit regeneration...`)
+        await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_QUERIES))
       }
     }
 
