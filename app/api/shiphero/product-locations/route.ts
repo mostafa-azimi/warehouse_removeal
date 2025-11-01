@@ -22,11 +22,11 @@ export async function POST(request: NextRequest) {
     let hasNextPage = true
     let cursor: string | null = null
     let pageCount = 0
-    const MAX_PAGES = 50 // Increased to handle all products (need ~6 pages at 30 per page for 165 products)
+    const MAX_PAGES = 50 // Increased to handle all products (need ~4 pages at 50 per page for 165 products)
 
     console.log('Starting pagination to fetch ALL products (up to 50 pages)...')
-    console.log('Strategy: 30 products/page with 20-second delays for credit regeneration')
-    console.log('Target: All SKU/location combinations with zero credit errors')
+    console.log('Strategy: 50 products/page using inventory_bins (simpler query, lower complexity)')
+    console.log('Target: All SKU/bin combinations with proper customer account filtering')
 
     while (hasNextPage && pageCount < MAX_PAGES) {
       pageCount++
@@ -37,33 +37,20 @@ export async function POST(request: NextRequest) {
           warehouse_products(customer_account_id: $customer_account_id) {
             request_id
             complexity
-            data(first: 30, after: $after) {
+            data(first: 50, after: $after) {
               edges {
                 node {
                   id
-                  on_hand
-                  inventory_bin
                   account_id
-                  custom
+                  on_hand
+                  warehouse_identifier
                   product {
                     sku
                     name
                   }
-                  locations(first: 50) {
-                    edges {
-                      node {
-                        quantity
-                        location {
-                          name
-                          pickable
-                          sellable
-                        }
-                      }
-                    }
-                  }
-                  warehouse {
-                    id
-                    identifier
+                  inventory_bins {
+                    on_hand
+                    bin
                   }
                 }
               }
@@ -185,13 +172,13 @@ export async function POST(request: NextRequest) {
       
       // Calculate delay based on credits needed
       // ShipHero regenerates 60 credits/second
-      // Each page (30 products) costs ~630 credits
-      // Wait 20 seconds = regenerate 1,200 credits (almost double what we use!)
+      // Each page (50 products with inventory_bins) costs less than the old locations query
+      // Wait 10 seconds = regenerate 600 credits (should be sufficient with simpler query)
       if (hasNextPage && pageCount < MAX_PAGES) {
-        const delaySeconds = 20
+        const delaySeconds = 10
         console.log(`⏳ Waiting ${delaySeconds} seconds to regenerate credits...`)
-        console.log(`   Regenerates ~${delaySeconds * 60} credits (page uses ~630)`)
-        console.log(`   Credit surplus per page: ~${(delaySeconds * 60) - 630} credits`)
+        console.log(`   Regenerates ~${delaySeconds * 60} credits`)
+        console.log(`   Using inventory_bins query (simpler than locations)`)
         await new Promise(resolve => setTimeout(resolve, delaySeconds * 1000))
       }
     }
