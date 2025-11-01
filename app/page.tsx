@@ -458,6 +458,7 @@ function SimpleSettings({ onConfigChange }: { onConfigChange?: (config: ShipHero
 
 // Define types
 export interface InventoryItem {
+  accountId?: string
   item: string
   sku: string
   warehouse: string

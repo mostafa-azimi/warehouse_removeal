@@ -445,9 +445,11 @@ export function DataImport({ onDataImported, inventoryData }: DataImportProps) {
           // STRICT ACCOUNT VALIDATION: Decode Base64 account_id from ShipHero
           // ShipHero returns account_id as Base64-encoded "Account:74769"
           let productAccountId = null
+          let decodedAccountInfo = null
           if (product?.account_id) {
             try {
               const decoded = atob(product.account_id) // Decode Base64
+              decodedAccountInfo = decoded // "Account:74769"
               productAccountId = decoded.split(':')[1] // Extract "74769" from "Account:74769"
             } catch (e) {
               console.error(`Failed to decode account_id for ${product.sku}:`, e)
@@ -485,7 +487,8 @@ export function DataImport({ onDataImported, inventoryData }: DataImportProps) {
                   quantity: quantity,
                   sellable: location?.sellable ?? true,
                   pickable: location?.pickable ?? true,
-                  warehouseId: 'N/A'
+                  warehouseId: 'N/A',
+                  accountId: productAccountId || 'Unknown' // Add account ID for display
                 });
               } else {
                 console.log(`[TRANSFORM] Skipping location ${locIndex} - zero or invalid quantity:`, quantity);
@@ -505,7 +508,8 @@ export function DataImport({ onDataImported, inventoryData }: DataImportProps) {
                 quantity: onHand,
                 sellable: true,
                 pickable: true,
-                warehouseId: 'N/A'
+                warehouseId: 'N/A',
+                accountId: productAccountId || 'Unknown' // Add account ID for display
               });
             } else {
               console.log(`[TRANSFORM] Skipping inventory_bin - zero or invalid quantity:`, onHand);
@@ -524,6 +528,7 @@ export function DataImport({ onDataImported, inventoryData }: DataImportProps) {
       const transformedData: InventoryItem[] = rawTransformedData
         .filter((item: any) => item.quantity > 0 && Number.isFinite(item.quantity))
         .map((item: any) => ({
+          accountId: item.accountId || 'Unknown', // Add account ID for display
           item: item.productName,
           sku: item.sku,
           warehouse: 'Warehouse', // Default since we're focusing on locations
@@ -557,11 +562,12 @@ export function DataImport({ onDataImported, inventoryData }: DataImportProps) {
     if (inventoryData.length === 0) return
 
     // Create CSV with all the data
-    const headers = ['Item', 'SKU', 'Warehouse', 'Bin Location', 'Quantity', 'Pickable', 'Sellable', 'Active', 'Type', 'Creation Date']
+    const headers = ['Account ID', 'Item', 'SKU', 'Warehouse', 'Bin Location', 'Quantity', 'Pickable', 'Sellable', 'Active', 'Type', 'Creation Date']
     const csvRows = [headers.join(',')]
 
     sortedDisplayData.forEach(item => {
       const row = [
+        `"${item.accountId || 'Unknown'}"`,
         `"${item.item}"`,
         `"${item.sku}"`,
         `"${item.warehouse}"`,
@@ -1023,6 +1029,17 @@ export function DataImport({ onDataImported, inventoryData }: DataImportProps) {
                 <TableRow>
                   <TableHead 
                     className="cursor-pointer hover:bg-gray-100 select-none"
+                    onClick={() => handleSort('accountId')}
+                  >
+                    <div className="flex items-center gap-2">
+                      Account
+                      {sortColumn === 'accountId' && (
+                        <span>{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                      )}
+                    </div>
+                  </TableHead>
+                  <TableHead 
+                    className="cursor-pointer hover:bg-gray-100 select-none"
                     onClick={() => handleSort('item')}
                   >
                     <div className="flex items-center gap-2">
@@ -1093,6 +1110,7 @@ export function DataImport({ onDataImported, inventoryData }: DataImportProps) {
               <TableBody>
                 {sortedDisplayData.map((item, index) => (
                   <TableRow key={index}>
+                    <TableCell className="font-mono text-xs text-gray-600">{item.accountId || 'Unknown'}</TableCell>
                     <TableCell className="font-medium">{item.item}</TableCell>
                     <TableCell className="font-mono">{item.sku}</TableCell>
                     <TableCell className="font-mono font-bold text-blue-600">{item.location}</TableCell>
