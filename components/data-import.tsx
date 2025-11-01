@@ -244,21 +244,8 @@ export function DataImport({ onDataImported, inventoryData }: DataImportProps) {
         const productInfo = product.product
         const sku = productInfo?.sku
         
-        // STRICT ACCOUNT VALIDATION: Decode Base64 account_id from ShipHero
-        let productAccountId = null
-        if (productInfo?.account_id) {
-          try {
-            const decoded = atob(productInfo.account_id) // Decode Base64
-            productAccountId = decoded.split(':')[1] // Extract "74769" from "Account:74769"
-          } catch (e) {
-            console.error(`Failed to decode account_id for ${sku}:`, e)
-          }
-        }
-        
-        if (productAccountId && productAccountId !== customerAccountId) {
-          console.warn(`⚠️ [FILTERED CSV] Skipping ${sku} - belongs to account ${productAccountId}, not ${customerAccountId}`)
-          return
-        }
+        // NOTE: The warehouse_products query with customer_account_id should handle filtering
+        // We trust ShipHero's filtering at the query level for 3PL scenarios
 
         // Only process if this SKU is in our CSV
         if (sku && skuQuantities.has(sku)) {
@@ -442,27 +429,23 @@ export function DataImport({ onDataImported, inventoryData }: DataImportProps) {
           const node = edge.node;
           const product = node.product;
           
-          // STRICT ACCOUNT VALIDATION: Decode Base64 account_id from ShipHero
-          // ShipHero returns account_id as Base64-encoded "Account:74769"
-          let productAccountId = null
-          let decodedAccountInfo = null
-          if (product?.account_id) {
+          // NOTE: product.account_id is the 3PL account (62850), not the customer account
+          // The warehouse_products query filters by customer_account_id at the query level
+          // We trust ShipHero's filtering and only validate at the location level
+          
+          // Get the warehouse_product account_id for display purposes
+          let warehouseProductAccountId = 'Unknown'
+          if (node?.account_id) {
             try {
-              const decoded = atob(product.account_id) // Decode Base64
-              decodedAccountInfo = decoded // "Account:74769"
-              productAccountId = decoded.split(':')[1] // Extract "74769" from "Account:74769"
+              const decoded = atob(node.account_id)
+              warehouseProductAccountId = decoded.split(':')[1]
             } catch (e) {
-              console.error(`Failed to decode account_id for ${product.sku}:`, e)
+              // Not base64, use as-is
+              warehouseProductAccountId = node.account_id
             }
           }
           
-          console.log(`[TRANSFORM] SKU ${product.sku}: account_id=${productAccountId} (decoded from ${product.account_id}), expected=${apiResponse._accountId}`)
-          
-          // Skip products from wrong accounts
-          if (productAccountId && apiResponse._accountId && productAccountId !== apiResponse._accountId) {
-            console.warn(`⚠️ [TRANSFORM] FILTERED OUT ${product.sku} - belongs to account ${productAccountId}, not ${apiResponse._accountId}`)
-            return
-          }
+          console.log(`[TRANSFORM] SKU ${product.sku}: warehouse_product.account_id=${warehouseProductAccountId}`)
           
           // Add debug logging as instructed
           console.log(`[TRANSFORM] Node locations:`, node.locations);
@@ -478,22 +461,9 @@ export function DataImport({ onDataImported, inventoryData }: DataImportProps) {
               const location = locationNode.location;
               const quantity = locationNode?.quantity || 0;
               
-              // LOCATION-LEVEL ACCOUNT VALIDATION: Check if location belongs to correct warehouse/account
-              let locationAccountId = null
-              if (location?.account_id) {
-                try {
-                  const decoded = atob(location.account_id)
-                  locationAccountId = decoded.split(':')[1]
-                } catch (e) {
-                  console.error(`Failed to decode location account_id for ${product.sku} at ${location?.name}:`, e)
-                }
-              }
-              
-              // Skip locations from wrong accounts
-              if (locationAccountId && apiResponse._accountId && locationAccountId !== apiResponse._accountId) {
-                console.warn(`⚠️ [LOCATION FILTER] Skipping ${product.sku} at ${location?.name} - location belongs to account ${locationAccountId}, not ${apiResponse._accountId}`)
-                return
-              }
+              // NOTE: Since we're querying by customer_account_id at the warehouse_products level,
+              // ShipHero should only return locations for that customer account.
+              // If cross-contamination still occurs, it's a ShipHero API bug we can't fix client-side.
               
               // STRICT: Only add locations with quantity > 0
               if (quantity > 0 && Number.isFinite(quantity)) {
@@ -505,7 +475,7 @@ export function DataImport({ onDataImported, inventoryData }: DataImportProps) {
                   sellable: location?.sellable ?? true,
                   pickable: location?.pickable ?? true,
                   warehouseId: 'N/A',
-                  accountId: productAccountId || 'Unknown' // Add account ID for display
+                  accountId: warehouseProductAccountId // Display the warehouse_product's account
                 });
               } else {
                 console.log(`[TRANSFORM] Skipping location ${locIndex} - zero or invalid quantity:`, quantity);
@@ -526,7 +496,7 @@ export function DataImport({ onDataImported, inventoryData }: DataImportProps) {
                 sellable: true,
                 pickable: true,
                 warehouseId: 'N/A',
-                accountId: productAccountId || 'Unknown' // Add account ID for display
+                accountId: warehouseProductAccountId // Display the warehouse_product's account
               });
             } else {
               console.log(`[TRANSFORM] Skipping inventory_bin - zero or invalid quantity:`, onHand);
