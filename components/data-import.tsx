@@ -243,6 +243,13 @@ export function DataImport({ onDataImported, inventoryData }: DataImportProps) {
         const product = edge.node
         const productInfo = product.product
         const sku = productInfo?.sku
+        
+        // STRICT ACCOUNT VALIDATION: Verify product belongs to the requested account
+        const productAccountId = productInfo?.account_id
+        if (productAccountId && productAccountId !== customerAccountId) {
+          console.warn(`⚠️ [FILTERED CSV] Skipping ${sku} - belongs to account ${productAccountId}, not ${customerAccountId}`)
+          return
+        }
 
         // Only process if this SKU is in our CSV
         if (sku && skuQuantities.has(sku)) {
@@ -425,6 +432,12 @@ export function DataImport({ onDataImported, inventoryData }: DataImportProps) {
           
           const node = edge.node;
           const product = node.product;
+          
+          // STRICT ACCOUNT VALIDATION: Skip products from wrong accounts
+          if (product?.account_id && apiResponse._accountId && product.account_id !== apiResponse._accountId) {
+            console.warn(`⚠️ [TRANSFORM] Skipping ${product.sku} - belongs to account ${product.account_id}, not ${apiResponse._accountId}`)
+            return
+          }
           
           // Add debug logging as instructed
           console.log(`[TRANSFORM] Node locations:`, node.locations);
