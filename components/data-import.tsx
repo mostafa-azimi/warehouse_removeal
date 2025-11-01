@@ -244,8 +244,17 @@ export function DataImport({ onDataImported, inventoryData }: DataImportProps) {
         const productInfo = product.product
         const sku = productInfo?.sku
         
-        // STRICT ACCOUNT VALIDATION: Verify product belongs to the requested account
-        const productAccountId = productInfo?.account_id
+        // STRICT ACCOUNT VALIDATION: Decode Base64 account_id from ShipHero
+        let productAccountId = null
+        if (productInfo?.account_id) {
+          try {
+            const decoded = atob(productInfo.account_id) // Decode Base64
+            productAccountId = decoded.split(':')[1] // Extract "74769" from "Account:74769"
+          } catch (e) {
+            console.error(`Failed to decode account_id for ${sku}:`, e)
+          }
+        }
+        
         if (productAccountId && productAccountId !== customerAccountId) {
           console.warn(`⚠️ [FILTERED CSV] Skipping ${sku} - belongs to account ${productAccountId}, not ${customerAccountId}`)
           return
@@ -433,12 +442,23 @@ export function DataImport({ onDataImported, inventoryData }: DataImportProps) {
           const node = edge.node;
           const product = node.product;
           
-          // Log account_id for debugging
-          console.log(`[TRANSFORM] SKU ${product.sku}: account_id=${product.account_id}, expected=${apiResponse._accountId}`)
+          // STRICT ACCOUNT VALIDATION: Decode Base64 account_id from ShipHero
+          // ShipHero returns account_id as Base64-encoded "Account:74769"
+          let productAccountId = null
+          if (product?.account_id) {
+            try {
+              const decoded = atob(product.account_id) // Decode Base64
+              productAccountId = decoded.split(':')[1] // Extract "74769" from "Account:74769"
+            } catch (e) {
+              console.error(`Failed to decode account_id for ${product.sku}:`, e)
+            }
+          }
           
-          // STRICT ACCOUNT VALIDATION: Skip products from wrong accounts
-          if (product?.account_id && apiResponse._accountId && product.account_id !== apiResponse._accountId) {
-            console.warn(`⚠️ [TRANSFORM] FILTERED OUT ${product.sku} - belongs to account ${product.account_id}, not ${apiResponse._accountId}`)
+          console.log(`[TRANSFORM] SKU ${product.sku}: account_id=${productAccountId} (decoded from ${product.account_id}), expected=${apiResponse._accountId}`)
+          
+          // Skip products from wrong accounts
+          if (productAccountId && apiResponse._accountId && productAccountId !== apiResponse._accountId) {
+            console.warn(`⚠️ [TRANSFORM] FILTERED OUT ${product.sku} - belongs to account ${productAccountId}, not ${apiResponse._accountId}`)
             return
           }
           
