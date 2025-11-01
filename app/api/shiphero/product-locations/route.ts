@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
                     sku
                     name
                   }
-                  locations(first: 75) {
+                  locations(first: 50) {
                     edges {
                       node {
                         quantity
