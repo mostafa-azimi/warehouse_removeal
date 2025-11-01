@@ -56,9 +56,15 @@ export async function POST(request: NextRequest) {
                           name
                           pickable
                           sellable
+                          warehouse_id
+                          account_id
                         }
                       }
                     }
+                  }
+                  warehouse {
+                    id
+                    account_id
                   }
                 }
               }

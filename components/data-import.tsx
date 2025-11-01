@@ -478,6 +478,23 @@ export function DataImport({ onDataImported, inventoryData }: DataImportProps) {
               const location = locationNode.location;
               const quantity = locationNode?.quantity || 0;
               
+              // LOCATION-LEVEL ACCOUNT VALIDATION: Check if location belongs to correct warehouse/account
+              let locationAccountId = null
+              if (location?.account_id) {
+                try {
+                  const decoded = atob(location.account_id)
+                  locationAccountId = decoded.split(':')[1]
+                } catch (e) {
+                  console.error(`Failed to decode location account_id for ${product.sku} at ${location?.name}:`, e)
+                }
+              }
+              
+              // Skip locations from wrong accounts
+              if (locationAccountId && apiResponse._accountId && locationAccountId !== apiResponse._accountId) {
+                console.warn(`⚠️ [LOCATION FILTER] Skipping ${product.sku} at ${location?.name} - location belongs to account ${locationAccountId}, not ${apiResponse._accountId}`)
+                return
+              }
+              
               // STRICT: Only add locations with quantity > 0
               if (quantity > 0 && Number.isFinite(quantity)) {
                 transformedItems.push({
