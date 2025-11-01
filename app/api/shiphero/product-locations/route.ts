@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
                     sku
                     name
                   }
-                  locations(first: 20) {
+                  locations(first: 50) {
                     edges {
                       node {
                         quantity
@@ -113,13 +113,24 @@ export async function POST(request: NextRequest) {
       const edges = data.data?.warehouse_products?.data?.edges || []
       const pageInfo = data.data?.warehouse_products?.data?.pageInfo
       
-      console.log(`Page ${pageCount}: Fetched ${edges.length} products`)
+      console.log(`✅ Page ${pageCount}: Fetched ${edges.length} products`)
+      console.log(`📊 PageInfo:`, JSON.stringify(pageInfo, null, 2))
       allProducts = allProducts.concat(edges)
       
       hasNextPage = pageInfo?.hasNextPage || false
       cursor = pageInfo?.endCursor || null
       
-      console.log(`Total products so far: ${allProducts.length}, Has next page: ${hasNextPage}`)
+      console.log(`📈 Total products so far: ${allProducts.length}`)
+      console.log(`🔄 Has next page: ${hasNextPage}`)
+      console.log(`🔑 Cursor for next page: ${cursor}`)
+      
+      if (!hasNextPage) {
+        console.log(`🛑 Pagination stopping - hasNextPage is false`)
+        console.log(`🛑 Final product count: ${allProducts.length} of expected 426`)
+        if (allProducts.length < 426) {
+          console.warn(`⚠️ MISSING ${426 - allProducts.length} PRODUCTS!`)
+        }
+      }
       
       // Delay between requests to avoid overwhelming the API and respect credit limits
       if (hasNextPage && pageCount < MAX_PAGES) {
