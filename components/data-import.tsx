@@ -208,21 +208,17 @@ export function DataImport({ onDataImported, inventoryData }: DataImportProps) {
         return
       }
 
-      console.log('[FILTERED CSV] Querying ShipHero for specific SKUs...')
+      console.log('[FILTERED CSV] Querying ShipHero for product locations...')
+      console.log('[FILTERED CSV] Note: This fetches all products then filters to CSV SKUs')
       
-      // Query ShipHero for ONLY the SKUs in the CSV (not all products)
-      const skusArray = Array.from(skuQuantities.keys())
-      console.log(`[FILTERED CSV] Fetching ${skusArray.length} specific SKUs:`, skusArray.slice(0, 10).join(', '), '...')
-      
-      const response = await fetch('/api/shiphero/specific-skus', {
+      const response = await fetch('/api/shiphero/product-locations', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           accessToken,
-          customerAccountId: customerAccountId,
-          skus: skusArray
+          customerAccountId: customerAccountId
         })
       })
 
