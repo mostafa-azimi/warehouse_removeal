@@ -455,32 +455,59 @@ export function DataImport({ onDataImported, inventoryData }: DataImportProps) {
           // Handle locations if they exist
           if (node.locations?.edges?.length > 0) {
             console.log(`[TRANSFORM] Found ${node.locations.edges.length} location(s)`);
+            
+            // WORKAROUND FOR SHIPHERO BUG: Validate total location quantities match on_hand
+            // ShipHero's locations query returns ALL locations across all customer accounts
+            // We need to filter to only include locations that sum to on_hand
+            const onHand = node.on_hand || 0
+            const validLocations: any[] = []
+            let runningTotal = 0
+            
+            // Collect all non-zero locations
             node.locations.edges.forEach((locationEdge: any, locIndex: number) => {
-              console.log(`[TRANSFORM] Location ${locIndex}:`, locationEdge.node);
-              const locationNode = locationEdge.node;
-              const location = locationNode.location;
-              const quantity = locationNode?.quantity || 0;
+              const locationNode = locationEdge.node
+              const location = locationNode.location
+              const quantity = locationNode?.quantity || 0
               
-              // NOTE: Since we're querying by customer_account_id at the warehouse_products level,
-              // ShipHero should only return locations for that customer account.
-              // If cross-contamination still occurs, it's a ShipHero API bug we can't fix client-side.
-              
-              // STRICT: Only add locations with quantity > 0
               if (quantity > 0 && Number.isFinite(quantity)) {
-                transformedItems.push({
-                  sku: product?.sku || 'N/A',
-                  productName: product?.name || 'N/A',
-                  binLocation: location?.name || node.inventory_bin || 'N/A',
-                  quantity: quantity,
-                  sellable: location?.sellable ?? true,
-                  pickable: location?.pickable ?? true,
-                  warehouseId: 'N/A',
-                  accountId: warehouseProductAccountId // Display the warehouse_product's account
-                });
-              } else {
-                console.log(`[TRANSFORM] Skipping location ${locIndex} - zero or invalid quantity:`, quantity);
+                validLocations.push({
+                  location,
+                  quantity,
+                  locIndex
+                })
               }
-            });
+            })
+            
+            console.log(`[TRANSFORM] ${product?.sku}: on_hand=${onHand}, found ${validLocations.length} non-zero locations`)
+            
+            // Add locations until we match on_hand (prevents cross-account contamination)
+            for (const loc of validLocations) {
+              if (runningTotal >= onHand) {
+                console.warn(`⚠️ [QUANTITY FILTER] Skipping ${product?.sku} at ${loc.location?.name} - would exceed on_hand (${runningTotal} + ${loc.quantity} > ${onHand})`)
+                break
+              }
+              
+              console.log(`[TRANSFORM] Adding location ${loc.locIndex}: ${loc.location?.name} with ${loc.quantity} units (running total: ${runningTotal + loc.quantity}/${onHand})`)
+              
+              transformedItems.push({
+                sku: product?.sku || 'N/A',
+                productName: product?.name || 'N/A',
+                binLocation: loc.location?.name || node.inventory_bin || 'N/A',
+                quantity: loc.quantity,
+                sellable: loc.location?.sellable ?? true,
+                pickable: loc.location?.pickable ?? true,
+                warehouseId: 'N/A',
+                accountId: warehouseProductAccountId
+              })
+              
+              runningTotal += loc.quantity
+            }
+            
+            console.log(`[TRANSFORM] ${product?.sku}: Added ${runningTotal} units across locations (matches on_hand: ${runningTotal === onHand})`)
+            
+            if (runningTotal !== onHand) {
+              console.warn(`⚠️ [QUANTITY MISMATCH] ${product?.sku}: location total (${runningTotal}) ≠ on_hand (${onHand})`)
+            }
           } else {
             console.log(`[TRANSFORM] No locations found, checking inventory_bin`);
             const onHand = node.on_hand || 0;
