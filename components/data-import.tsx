@@ -36,6 +36,9 @@ export function DataImport({ onDataImported, inventoryData }: DataImportProps) {
   // Sorting state
   const [sortColumn, setSortColumn] = useState<'item' | 'sku' | 'location' | 'units' | 'pickable' | 'sellable' | null>(null)
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
+  
+  // Display settings
+  const [showZeroQuantity, setShowZeroQuantity] = useState(false)
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file) return
@@ -642,6 +645,11 @@ export function DataImport({ onDataImported, inventoryData }: DataImportProps) {
   const sortedDisplayData = React.useMemo(() => {
     let sorted = [...inventoryData]
     
+    // Filter based on show zero quantity setting
+    if (!showZeroQuantity) {
+      sorted = sorted.filter(item => item.units > 0)
+    }
+    
     if (sortColumn) {
       sorted.sort((a, b) => {
         let aVal: any = a[sortColumn]
@@ -670,7 +678,7 @@ export function DataImport({ onDataImported, inventoryData }: DataImportProps) {
     }
     
     return sorted
-  }, [inventoryData, sortColumn, sortDirection])
+  }, [inventoryData, sortColumn, sortDirection, showZeroQuantity])
 
   return (
     <div className="space-y-6">
@@ -880,14 +888,25 @@ export function DataImport({ onDataImported, inventoryData }: DataImportProps) {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-semibold">Imported Data Preview</h3>
-            <Button
-              onClick={generateAllQRCodes}
-              disabled={isGeneratingQR}
-              className="bg-orange-600 hover:bg-orange-700"
-            >
-              <Upload className="mr-2 h-4 w-4" />
-              {isGeneratingQR ? "Generating..." : `Generate All QR Codes (${inventoryData.length})`}
-            </Button>
+            <div className="flex items-center gap-4">
+              <label className="flex items-center gap-2 text-sm cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={showZeroQuantity}
+                  onChange={(e) => setShowZeroQuantity(e.target.checked)}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-gray-700">Show zero quantity locations</span>
+              </label>
+              <Button
+                onClick={generateAllQRCodes}
+                disabled={isGeneratingQR}
+                className="bg-orange-600 hover:bg-orange-700"
+              >
+                <Upload className="mr-2 h-4 w-4" />
+                {isGeneratingQR ? "Generating..." : `Generate All QR Codes (${inventoryData.length})`}
+              </Button>
+            </div>
           </div>
 
           <div className="rounded-md border max-h-[600px] overflow-auto">
@@ -1003,7 +1022,10 @@ export function DataImport({ onDataImported, inventoryData }: DataImportProps) {
             </Table>
           </div>
           <p className="text-sm text-muted-foreground">
-            Showing all {inventoryData.length} items • Click column headers to sort
+            Showing {sortedDisplayData.length} of {inventoryData.length} items
+            {!showZeroQuantity && sortedDisplayData.length < inventoryData.length && 
+              ` (${inventoryData.length - sortedDisplayData.length} zero-quantity items hidden)`
+            } • Click column headers to sort
           </p>
         </div>
       )}
