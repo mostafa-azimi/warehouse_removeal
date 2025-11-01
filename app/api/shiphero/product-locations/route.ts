@@ -44,13 +44,22 @@ export async function POST(request: NextRequest) {
                   account_id
                   on_hand
                   warehouse_identifier
+                  inventory_bin
                   product {
                     sku
                     name
                   }
-                  inventory_bins {
-                    on_hand
-                    bin
+                  locations(first: 50) {
+                    edges {
+                      node {
+                        quantity
+                        location {
+                          name
+                          pickable
+                          sellable
+                        }
+                      }
+                    }
                   }
                 }
               }

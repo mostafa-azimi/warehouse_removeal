@@ -448,46 +448,75 @@ export function DataImport({ onDataImported, inventoryData }: DataImportProps) {
           console.log(`[TRANSFORM] SKU ${product.sku}: warehouse_product.account_id=${warehouseProductAccountId}`)
           
           // Add debug logging
-          console.log(`[TRANSFORM] Node inventory_bins:`, node.inventory_bins);
+          console.log(`[TRANSFORM] Node locations:`, node.locations);
+          console.log(`[TRANSFORM] Inventory bin:`, node.inventory_bin);
           console.log(`[TRANSFORM] On hand:`, node.on_hand);
           
-          // NEW: Use inventory_bins instead of locations
-          if (node.inventory_bins && Array.isArray(node.inventory_bins) && node.inventory_bins.length > 0) {
-            console.log(`[TRANSFORM] Found ${node.inventory_bins.length} inventory bin(s)`);
+          // Handle locations with quantity-based filtering
+          if (node.locations?.edges?.length > 0) {
+            console.log(`[TRANSFORM] Found ${node.locations.edges.length} location(s)`);
             
-            node.inventory_bins.forEach((inventoryBin: any, binIndex: number) => {
-              const binName = inventoryBin.bin
-              const binQuantity = inventoryBin.on_hand || 0
+            // WORKAROUND: Use on_hand to filter cross-account locations
+            const onHand = node.on_hand || 0
+            const validLocations: any[] = []
+            let runningTotal = 0
+            
+            // Collect all non-zero locations
+            node.locations.edges.forEach((locationEdge: any, locIndex: number) => {
+              const locationNode = locationEdge.node
+              const location = locationNode.location
+              const quantity = locationNode?.quantity || 0
               
-              console.log(`[TRANSFORM] Bin ${binIndex}: ${binName} with ${binQuantity} units`);
-              
-              // Only add bins with quantity > 0
-              if (binQuantity > 0 && Number.isFinite(binQuantity)) {
-                transformedItems.push({
-                  sku: product?.sku || 'N/A',
-                  productName: product?.name || 'N/A',
-                  binLocation: binName || 'N/A',
-                  quantity: binQuantity,
-                  sellable: true, // inventory_bins doesn't have pickable/sellable info
-                  pickable: true,
-                  warehouseId: 'N/A',
-                  accountId: warehouseProductAccountId
+              if (quantity > 0 && Number.isFinite(quantity)) {
+                validLocations.push({
+                  location,
+                  quantity,
+                  locIndex
                 })
-              } else {
-                console.log(`[TRANSFORM] Skipping bin ${binIndex} - zero or invalid quantity:`, binQuantity);
               }
             })
-          } else {
-            console.log(`[TRANSFORM] No inventory_bins found, using on_hand total`);
-            const onHand = node.on_hand || 0;
             
-            // If no bins, create a single entry with total on_hand
-            if (onHand > 0 && Number.isFinite(onHand)) {
-              console.log(`[TRANSFORM] Adding single entry with ${onHand} units`);
+            console.log(`[TRANSFORM] ${product?.sku}: on_hand=${onHand}, found ${validLocations.length} non-zero locations`)
+            
+            // Add locations until we match on_hand (prevents cross-account contamination)
+            for (const loc of validLocations) {
+              if (runningTotal >= onHand) {
+                console.warn(`⚠️ [QUANTITY FILTER] Skipping ${product?.sku} at ${loc.location?.name} - would exceed on_hand (${runningTotal} + ${loc.quantity} > ${onHand})`)
+                break
+              }
+              
+              console.log(`[TRANSFORM] Adding location ${loc.locIndex}: ${loc.location?.name} with ${loc.quantity} units (running total: ${runningTotal + loc.quantity}/${onHand})`)
+              
               transformedItems.push({
                 sku: product?.sku || 'N/A',
                 productName: product?.name || 'N/A',
-                binLocation: node.warehouse_identifier || 'Warehouse',
+                binLocation: loc.location?.name || node.inventory_bin || 'N/A',
+                quantity: loc.quantity,
+                sellable: loc.location?.sellable ?? true,
+                pickable: loc.location?.pickable ?? true,
+                warehouseId: 'N/A',
+                accountId: warehouseProductAccountId
+              })
+              
+              runningTotal += loc.quantity
+            }
+            
+            console.log(`[TRANSFORM] ${product?.sku}: Added ${runningTotal} units across locations (matches on_hand: ${runningTotal === onHand})`)
+            
+            if (runningTotal !== onHand) {
+              console.warn(`⚠️ [QUANTITY MISMATCH] ${product?.sku}: location total (${runningTotal}) ≠ on_hand (${onHand})`)
+            }
+          } else {
+            console.log(`[TRANSFORM] No locations found, checking inventory_bin`);
+            const onHand = node.on_hand || 0;
+            
+            // If no locations, use inventory_bin (static slotting)
+            if (onHand > 0 && Number.isFinite(onHand) && node.inventory_bin) {
+              console.log(`[TRANSFORM] Adding inventory_bin: ${node.inventory_bin} with ${onHand} units`);
+              transformedItems.push({
+                sku: product?.sku || 'N/A',
+                productName: product?.name || 'N/A',
+                binLocation: node.inventory_bin,
                 quantity: onHand,
                 sellable: true,
                 pickable: true,
