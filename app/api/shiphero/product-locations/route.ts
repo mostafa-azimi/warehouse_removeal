@@ -22,10 +22,11 @@ export async function POST(request: NextRequest) {
     let hasNextPage = true
     let cursor: string | null = null
     let pageCount = 0
-    const MAX_PAGES = 50 // Increased to handle 426 products (need ~9 pages at 50 per page)
+    const MAX_PAGES = 50 // Increased to handle all products (need ~6 pages at 30 per page for 165 products)
 
     console.log('Starting pagination to fetch ALL products (up to 50 pages)...')
-    console.log('Target: Fetch all 426+ products from ShipHero')
+    console.log('Strategy: 30 products/page with 20-second delays for credit regeneration')
+    console.log('Target: All SKU/location combinations with zero credit errors')
 
     while (hasNextPage && pageCount < MAX_PAGES) {
       pageCount++
@@ -36,7 +37,7 @@ export async function POST(request: NextRequest) {
           warehouse_products(customer_account_id: $customer_account_id) {
             request_id
             complexity
-            data(first: 50, after: $after) {
+            data(first: 30, after: $after) {
               edges {
                 node {
                   id
@@ -144,11 +145,13 @@ export async function POST(request: NextRequest) {
       
       // Calculate delay based on credits needed
       // ShipHero regenerates 60 credits/second
-      // Each page costs ~1051 credits, so we need ~17.5 seconds to regenerate enough
+      // Each page (30 products) costs ~630 credits
+      // Wait 20 seconds = regenerate 1,200 credits (almost double what we use!)
       if (hasNextPage && pageCount < MAX_PAGES) {
-        const delaySeconds = 20 // 20 seconds to be safe (regenerates 1200 credits)
-        console.log(`⏳ Waiting ${delaySeconds} seconds to regenerate credits (60 credits/sec)...`)
-        console.log(`   This allows ~${delaySeconds * 60} credits to regenerate`)
+        const delaySeconds = 20
+        console.log(`⏳ Waiting ${delaySeconds} seconds to regenerate credits...`)
+        console.log(`   Regenerates ~${delaySeconds * 60} credits (page uses ~630)`)
+        console.log(`   Credit surplus per page: ~${(delaySeconds * 60) - 630} credits`)
         await new Promise(resolve => setTimeout(resolve, delaySeconds * 1000))
       }
     }
