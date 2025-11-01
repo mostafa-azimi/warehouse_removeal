@@ -433,9 +433,12 @@ export function DataImport({ onDataImported, inventoryData }: DataImportProps) {
           const node = edge.node;
           const product = node.product;
           
+          // Log account_id for debugging
+          console.log(`[TRANSFORM] SKU ${product.sku}: account_id=${product.account_id}, expected=${apiResponse._accountId}`)
+          
           // STRICT ACCOUNT VALIDATION: Skip products from wrong accounts
           if (product?.account_id && apiResponse._accountId && product.account_id !== apiResponse._accountId) {
-            console.warn(`⚠️ [TRANSFORM] Skipping ${product.sku} - belongs to account ${product.account_id}, not ${apiResponse._accountId}`)
+            console.warn(`⚠️ [TRANSFORM] FILTERED OUT ${product.sku} - belongs to account ${product.account_id}, not ${apiResponse._accountId}`)
             return
           }
           

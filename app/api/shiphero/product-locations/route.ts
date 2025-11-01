@@ -46,6 +46,7 @@ export async function POST(request: NextRequest) {
                   product {
                     sku
                     name
+                    account_id
                   }
                   locations(first: 50) {
                     edges {
