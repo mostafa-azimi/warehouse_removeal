@@ -96,6 +96,25 @@ export async function POST(request: NextRequest) {
       
       const data = JSON.parse(responseText);
       
+      // Log account_id for first few products to verify ShipHero's filtering
+      if (pageCount === 1) {
+        const edges = data?.data?.warehouse_products?.data?.edges || []
+        if (edges.length > 0) {
+          console.log('=== ACCOUNT ID VERIFICATION (First 5 products) ===')
+          edges.slice(0, 5).forEach((edge: any) => {
+            const sku = edge?.node?.product?.sku
+            const accountId = edge?.node?.product?.account_id
+            try {
+              const decoded = Buffer.from(accountId, 'base64').toString('utf-8')
+              const plainId = decoded.split(':')[1]
+              console.log(`  SKU: ${sku}, account_id: ${plainId} (from ${accountId})`)
+            } catch (e) {
+              console.log(`  SKU: ${sku}, account_id: ${accountId} (decode failed)`)
+            }
+          })
+        }
+      }
+      
       if (data.errors) {
         console.error(`⚠️ GraphQL Errors on page ${pageCount}:`, JSON.stringify(data.errors, null, 2));
         
