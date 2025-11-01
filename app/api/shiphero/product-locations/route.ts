@@ -99,19 +99,27 @@ export async function POST(request: NextRequest) {
       // Log account_id for first few products to verify ShipHero's filtering
       if (pageCount === 1) {
         const edges = data?.data?.warehouse_products?.data?.edges || []
+        console.log('🔍 VERCEL LOG: Checking account IDs from ShipHero API...')
+        console.log(`🔍 VERCEL LOG: Requested account: ${customerAccountId}`)
         if (edges.length > 0) {
-          console.log('=== ACCOUNT ID VERIFICATION (First 5 products) ===')
-          edges.slice(0, 5).forEach((edge: any) => {
+          console.log('=== 🔍 ACCOUNT ID VERIFICATION (First 10 products) ===')
+          edges.slice(0, 10).forEach((edge: any, idx: number) => {
             const sku = edge?.node?.product?.sku
             const accountId = edge?.node?.product?.account_id
             try {
               const decoded = Buffer.from(accountId, 'base64').toString('utf-8')
               const plainId = decoded.split(':')[1]
-              console.log(`  SKU: ${sku}, account_id: ${plainId} (from ${accountId})`)
+              console.log(`  ${idx + 1}. SKU: ${sku}, account_id: ${plainId} ${plainId === customerAccountId ? '✅ MATCH' : '❌ MISMATCH'}`)
+              if (plainId !== customerAccountId) {
+                console.warn(`    ⚠️ WARNING: Product ${sku} belongs to account ${plainId}, not ${customerAccountId}!`)
+              }
             } catch (e) {
-              console.log(`  SKU: ${sku}, account_id: ${accountId} (decode failed)`)
+              console.log(`  ${idx + 1}. SKU: ${sku}, account_id: ${accountId} (decode failed)`)
             }
           })
+          console.log('=== END ACCOUNT ID VERIFICATION ===')
+        } else {
+          console.log('⚠️ No products returned on page 1!')
         }
       }
       
