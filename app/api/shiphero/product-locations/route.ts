@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
                     sku
                     name
                   }
-                  locations(first: 100) {
+                  locations(first: 75) {
                     edges {
                       node {
                         quantity
@@ -95,19 +95,29 @@ export async function POST(request: NextRequest) {
       const data = JSON.parse(responseText);
       
       if (data.errors) {
-        console.error('GraphQL Errors:', data.errors);
+        console.error(`⚠️ GraphQL Errors on page ${pageCount}:`, JSON.stringify(data.errors, null, 2));
         
         // Check for credit limit errors
         const creditError = data.errors.find((e: any) => e.code === 30)
         if (creditError) {
-          console.warn(`Credit limit reached at page ${pageCount}. Returning partial results.`)
+          console.warn(`💳 Credit limit reached at page ${pageCount}`)
+          console.warn(`Required: ${creditError.required_credits}, Available: ${creditError.remaining_credits}`)
+          console.warn(`Returning partial results: ${allProducts.length} products`)
           break
         }
         
-        return NextResponse.json({ 
-          error: 'ShipHero GraphQL error',
-          details: data.errors
-        }, { status: 400 })
+        // For other errors on page 1, return error
+        if (pageCount === 1) {
+          console.error('❌ Error on first page - aborting')
+          return NextResponse.json({ 
+            error: 'ShipHero GraphQL error',
+            details: data.errors
+          }, { status: 400 })
+        }
+        
+        // For errors on subsequent pages, return what we have
+        console.warn(`Continuing with ${allProducts.length} products from previous pages`)
+        break
       }
 
       const edges = data.data?.warehouse_products?.data?.edges || []
