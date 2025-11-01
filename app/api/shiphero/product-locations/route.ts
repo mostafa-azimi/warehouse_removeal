@@ -142,10 +142,14 @@ export async function POST(request: NextRequest) {
         }
       }
       
-      // Delay between requests to avoid overwhelming the API and respect credit limits
+      // Calculate delay based on credits needed
+      // ShipHero regenerates 60 credits/second
+      // Each page costs ~1051 credits, so we need ~17.5 seconds to regenerate enough
       if (hasNextPage && pageCount < MAX_PAGES) {
-        console.log(`Waiting 500ms before next page to respect rate limits...`)
-        await new Promise(resolve => setTimeout(resolve, 500))
+        const delaySeconds = 20 // 20 seconds to be safe (regenerates 1200 credits)
+        console.log(`⏳ Waiting ${delaySeconds} seconds to regenerate credits (60 credits/sec)...`)
+        console.log(`   This allows ~${delaySeconds * 60} credits to regenerate`)
+        await new Promise(resolve => setTimeout(resolve, delaySeconds * 1000))
       }
     }
 

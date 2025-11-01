@@ -788,7 +788,13 @@ export function DataImport({ onDataImported, inventoryData }: DataImportProps) {
             <div className="bg-white rounded-lg p-4 border border-purple-200">
               <p className="text-base text-purple-600 font-medium">Querying ShipHero API for account {accountId}...</p>
               <div className="mt-2 text-sm text-purple-500">
-                This may take a few moments depending on inventory size
+                <div className="mb-2">Fetching all products with location data...</div>
+                <div className="text-xs text-purple-400">
+                  ⏱️ This process includes 20-second delays between pages to respect API credit limits
+                </div>
+                <div className="text-xs text-purple-400">
+                  Expected time: ~2 minutes for complete data (worth the wait for 100% accuracy!)
+                </div>
               </div>
             </div>
           )}
