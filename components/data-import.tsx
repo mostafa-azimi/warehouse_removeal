@@ -498,6 +498,43 @@ export function DataImport({ onDataImported, inventoryData }: DataImportProps) {
     }
   }
 
+  const exportToCSV = () => {
+    if (inventoryData.length === 0) return
+
+    // Create CSV with all the data
+    const headers = ['Item', 'SKU', 'Warehouse', 'Bin Location', 'Quantity', 'Pickable', 'Sellable', 'Active', 'Type', 'Creation Date']
+    const csvRows = [headers.join(',')]
+
+    sortedDisplayData.forEach(item => {
+      const row = [
+        `"${item.item}"`,
+        `"${item.sku}"`,
+        `"${item.warehouse}"`,
+        `"${item.location}"`,
+        item.units,
+        item.pickable,
+        item.sellable,
+        item.activeItem,
+        `"${item.type}"`,
+        `"${item.creationDate}"`
+      ]
+      csvRows.push(row.join(','))
+    })
+
+    const csvContent = csvRows.join('\n')
+    const blob = new Blob([csvContent], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `warehouse-inventory-${new Date().toISOString().split('T')[0]}.csv`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+
+    console.log(`[EXPORT] Exported ${sortedDisplayData.length} items to CSV`)
+  }
+
   const generateAllQRCodes = () => {
     if (inventoryData.length === 0) return
 
@@ -898,6 +935,16 @@ export function DataImport({ onDataImported, inventoryData }: DataImportProps) {
                 />
                 <span className="text-gray-700">Show zero quantity locations</span>
               </label>
+              <Button
+                onClick={exportToCSV}
+                variant="outline"
+                className="border-green-600 text-green-600 hover:bg-green-50"
+              >
+                <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Export CSV ({sortedDisplayData.length} items)
+              </Button>
               <Button
                 onClick={generateAllQRCodes}
                 disabled={isGeneratingQR}
